@@ -37,4 +37,7 @@ The system is modular and designed to be extended with additional data sources, 
 
 ---
 
-## Project Structure
+## 🧩 Workflows
+
+- **sports-betting-agent.json**  
+  Main n8n workflow responsible for ingesting odds data, evaluating player prop opportunities, and triggering downstream actions based on predefined criteria.
