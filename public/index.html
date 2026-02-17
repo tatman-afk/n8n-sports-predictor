@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sports Predictor Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero">
+        <div class="hero-top">
+          <p class="eyebrow">n8n + OpenAI + Sports APIs</p>
+          <button id="refreshBtn">Refresh now</button>
+        </div>
+        <h1>Sports Predictor Dashboard</h1>
+        <p class="hero-sub">Live AI-generated picks, organized by risk profile and parlay strategy.</p>
+        <p id="updatedAt">Waiting for first prediction run...</p>
+      </header>
+
+      <section class="stats-grid">
+        <article class="stat">
+          <p class="stat-label">League</p>
+          <p id="statLeague" class="stat-value">-</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Saved Runs</p>
+          <p id="statRuns" class="stat-value">0</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Latest Run</p>
+          <p id="statLatestTime" class="stat-value">-</p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Section Performance</h2>
+        <p class="panel-sub">Win/loss rate by pick category from settled picks in history.</p>
+        <div id="sectionStats" class="section-stats"></div>
+      </section>
+
+      <section class="panel panel-main">
+        <div class="panel-head">
+          <div>
+            <h2>Latest Predictions</h2>
+            <p class="panel-sub">Current recommendation set from your most recent run.</p>
+          </div>
+        </div>
+        <div id="latestContainer" class="empty">No predictions yet.</div>
+      </section>
+
+      <section class="panel panel-history">
+        <h2>Recent Runs</h2>
+        <p class="panel-sub">Most recent saved runs from your Supabase history.</p>
+        <div id="historyContainer" class="history"></div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

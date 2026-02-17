@@ -140,6 +140,24 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DASHBOARD_API_URL || 'http://localhost:3000/api/predictions' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"title\":\"Daily Sports Predictions\",\"league\":\"NBA + MLB\",\"rawMessage\":$node[\"Ods Assistant\"].json.message.content}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        424,
+        320
+      ],
+      "id": "2b27957f-fb54-4d6d-87b2-9e4e02c8f411",
+      "name": "POST Dashboard Prediction"
+    },
+    {
+      "parameters": {
         "url": "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/?regions=us&markets=h2h&apiKey=a4e3830d3908ce37644272e68ffd4c8e",
         "options": {}
       },
@@ -259,8 +277,18 @@
             "node": "Telegram Connector",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "POST Dashboard Prediction",
+            "type": "main",
+            "index": 0
           }
         ]
+      ]
+    },
+    "POST Dashboard Prediction": {
+      "main": [
+        []
       ]
     },
     "NHL": {

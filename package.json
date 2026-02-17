@@ -1,0 +1,15 @@
+{
+  "name": "n8n-sports-predictor-web",
+  "version": "1.0.0",
+  "description": "Web dashboard for n8n sports predictions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2"
+  }
+}
