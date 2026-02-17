@@ -1,24 +1,19 @@
 # n8n Sports Predictor
 
-This repo now includes:
-1. Your n8n workflow (`workflows/sports-betting-agent.json`)
-2. A lightweight web dashboard to view predictions that auto-refresh every minute
-3. Supabase-backed storage for latest prediction runs
+Sports prediction pipeline using n8n + OpenAI + odds/score feeds, with a live dashboard and Supabase-backed history.
 
-## What the web app does
+## Live Dashboard
 
-- Stores prediction payloads in Supabase and returns latest + history
-- Exposes API endpoints for ingest + read:
-  - `POST /api/predictions` (from n8n)
-  - `GET /api/predictions` (for dashboard)
-  - `POST /api/settle` (nightly result settlement)
-- Displays:
-  - Latest run
-  - Structured picks (if provided)
-  - Raw OpenAI output text (if provided)
-  - Recent run history
+- Production: [https://sports-predictor-ai.onrender.com/](https://sports-predictor-ai.onrender.com/)
 
-## Project structure
+## What This Repo Includes
+
+- n8n workflow export: `workflows/sports-betting-agent.json`
+- Express API + dashboard UI
+- Supabase schema and persistence
+- Auto-settlement endpoint (`/api/settle`) for win/loss tagging
+
+## Project Structure
 
 ```text
 .
@@ -31,130 +26,27 @@ This repo now includes:
 ├── workflows/
 │   └── sports-betting-agent.json
 ├── server.js
-└── package.json
+├── package.json
+└── .env.example
 ```
 
-## Local setup
+## Quick Start (Local)
 
 1. Create a Supabase project.
-2. In Supabase SQL editor, run `/Users/shanetatman/Documents/n8n-sports-predictor/supabase/schema.sql`.
-3. Copy your project URL and service role key from Supabase settings.
+2. Run `supabase/schema.sql` in the Supabase SQL editor.
+3. Create local env file and run app:
 
 ```bash
 npm install
 cp .env.example .env
-# edit .env with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 npm run dev
 ```
 
-Server starts at `http://localhost:3000` by default.
+Local app URL: `http://localhost:3000`
 
-## Connect n8n to the dashboard
+## Environment Variables
 
-Add a new **HTTP Request** node after your OpenAI node in n8n.
-
-- Method: `POST`
-- URL: `http://YOUR_SERVER:3000/api/predictions`
-- Headers:
-  - `Content-Type: application/json`
-  - `x-ingest-key: {{$env.INGEST_KEY}}` (only if you set `INGEST_KEY`)
-- Body (JSON):
-
-```json
-{
-  "title": "Daily Sports Predictions",
-  "league": "NBA + MLB",
-  "aiSummary": "Top confidence picks based on current lines and implied win rates.",
-  "rawMessage": "={{$node[\"Ods Assistant\"].json.message.content}}",
-  "games": [
-    {
-      "matchup": "Lakers @ Celtics",
-      "pick": "Celtics ML",
-      "odds": "-145",
-      "confidence": "72%",
-      "reason": "Higher implied probability and stronger current form."
-    }
-  ]
-}
-```
-
-If you only have the OpenAI text right now, send just `rawMessage` and add structured `games` later.
-
-If you import the updated workflow JSON in this repo, it already includes a node named `POST Dashboard Prediction` that uses:
-
-- `{{$env.DASHBOARD_API_URL}}` (fallback: `http://localhost:3000/api/predictions`)
-- `{{$env.INGEST_KEY}}` (if configured)
-
-## API contract
-
-### `POST /api/predictions`
-
-Accepts:
-
-- `title` (string, optional)
-- `league` (string, optional)
-- `aiSummary` (string, optional)
-- `rawMessage` (string, optional)
-- `games` (array, optional if `rawMessage` is provided)
-
-At least one of `rawMessage` or non-empty `games` is required.
-
-### `GET /api/predictions`
-
-Returns:
-
-```json
-{
-  "latest": {},
-  "history": [],
-  "updatedAt": "2026-02-17T00:00:00.000Z"
-}
-```
-
-### `POST /api/settle`
-
-Automatically settles recent picks/parlays by matching them against completed ESPN scoreboard results.
-
-Request body (optional):
-
-```json
-{
-  "daysBack": 4
-}
-```
-
-Response:
-
-```json
-{
-  "ok": true,
-  "scannedPredictions": 30,
-  "updatedPredictions": 8,
-  "settledItems": 41,
-  "fetchedGames": 57
-}
-```
-
-## Automatic nightly settlement in n8n
-
-Add a second daily node (or a separate workflow) to run after games end:
-
-- Method: `POST`
-- URL: `http://localhost:3000/api/settle` (or your deployed API URL)
-- Headers:
-  - `Content-Type: application/json`
-  - `x-ingest-key: <your INGEST_KEY>` (if enabled)
-- Body:
-
-```json
-{
-  "daysBack": 4
-}
-```
-
-This writes `Result: Win` / `Result: Loss` into saved picks, which powers section win/loss percentages in the dashboard.
-
-## Required environment variables
+Required:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -163,3 +55,72 @@ Optional:
 
 - `PORT`
 - `INGEST_KEY`
+
+## API Endpoints
+
+### `POST /api/predictions`
+
+Ingests a prediction run from n8n.
+
+Body fields:
+
+- `title` (optional)
+- `league` (optional)
+- `aiSummary` (optional)
+- `rawMessage` (optional if `games` exists)
+- `games` (optional if `rawMessage` exists)
+
+At least one of `rawMessage` or non-empty `games` is required.
+
+### `GET /api/predictions`
+
+Returns latest run, recent history, and timestamp used by the dashboard.
+
+### `POST /api/settle`
+
+Settles saved picks/parlays by matching them against completed ESPN games and appending:
+
+- `Result: Win`
+- `Result: Loss`
+- `Result: Pending`
+
+Example body:
+
+```json
+{
+  "daysBack": 31
+}
+```
+
+## n8n Integration
+
+### Prediction node
+
+- Method: `POST`
+- URL: `https://sports-predictor-ai.onrender.com/api/predictions`
+- Headers:
+  - `Content-Type: application/json`
+  - `x-ingest-key: <your INGEST_KEY>` (if enabled)
+
+### Nightly settle node
+
+- Method: `POST`
+- URL: `https://sports-predictor-ai.onrender.com/api/settle`
+- Headers:
+  - `Content-Type: application/json`
+  - `x-ingest-key: <your INGEST_KEY>` (if enabled)
+- Body:
+
+```json
+{
+  "daysBack": 31
+}
+```
+
+## Deployment
+
+Hosted on Render as a Web Service:
+
+- Build command: `npm install`
+- Start command: `npm start`
+- Runtime: Node
