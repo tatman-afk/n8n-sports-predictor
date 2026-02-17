@@ -1,7 +1,7 @@
 # n8n Sports Predictor
 
 This repo now includes:
-1. n8n workflow (`workflows/sports-betting-agent.json`)
+1. Your n8n workflow (`workflows/sports-betting-agent.json`)
 2. A lightweight web dashboard to view predictions that auto-refresh every minute
 3. Supabase-backed storage for latest prediction runs
 
