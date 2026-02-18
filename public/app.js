@@ -6,6 +6,32 @@ const statLeague = document.getElementById("statLeague");
 const statRuns = document.getElementById("statRuns");
 const statLatestTime = document.getElementById("statLatestTime");
 const sectionStats = document.getElementById("sectionStats");
+const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+const pageBlocks = Array.from(document.querySelectorAll(".panel-block"));
+const allowedPages = new Set(["overview", "predictions", "performance", "history"]);
+
+function setPage(page, updateHash = true) {
+  const targetPage = allowedPages.has(page) ? page : "overview";
+
+  for (const btn of tabButtons) {
+    btn.classList.toggle("is-active", btn.dataset.page === targetPage);
+  }
+
+  for (const block of pageBlocks) {
+    const pages = (block.dataset.pages || "")
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    block.hidden = !pages.includes(targetPage);
+  }
+
+  document.body.classList.remove("page-overview", "page-predictions", "page-performance", "page-history");
+  document.body.classList.add(`page-${targetPage}`);
+
+  if (updateHash) {
+    history.replaceState(null, "", `#${targetPage}`);
+  }
+}
 
 function fmtDate(iso) {
   if (!iso) return "Unknown";
@@ -270,5 +296,11 @@ async function load() {
 }
 
 refreshBtn.addEventListener("click", load);
+for (const btn of tabButtons) {
+  btn.addEventListener("click", () => setPage(btn.dataset.page || "overview"));
+}
+
+setPage(location.hash.replace("#", ""), false);
+window.addEventListener("hashchange", () => setPage(location.hash.replace("#", ""), false));
 load();
 setInterval(load, 60000);
