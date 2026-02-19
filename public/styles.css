@@ -59,13 +59,18 @@ h3,
 .brand-block {
   display: flex;
   align-items: center;
+  min-width: 220px;
 }
 
 .brand-logo {
   display: block;
-  height: 46px;
-  width: auto;
-  object-fit: contain;
+  width: 220px;
+  height: 74px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 10px;
+  filter: saturate(1.18) contrast(1.1) brightness(1.04);
+  box-shadow: 0 0 24px rgba(203, 109, 255, 0.34);
 }
 
 .top-tabs {
