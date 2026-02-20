@@ -6,9 +6,13 @@ const statLeague = document.getElementById("statLeague");
 const statRuns = document.getElementById("statRuns");
 const statLatestTime = document.getElementById("statLatestTime");
 const sectionStats = document.getElementById("sectionStats");
+const viewLatestBtn = document.getElementById("viewLatestBtn");
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const pageBlocks = Array.from(document.querySelectorAll(".panel-block"));
 const allowedPages = new Set(["overview", "predictions", "performance", "history"]);
+let latestPrediction = null;
+let predictionHistory = [];
+let selectedPredictionId = null;
 
 function setPage(page, updateHash = true) {
   const targetPage = allowedPages.has(page) ? page : "overview";
@@ -254,7 +258,7 @@ function renderLatest(latest) {
   `;
 }
 
-function renderHistory(history) {
+function renderHistory(history, selectedId = null) {
   if (!Array.isArray(history) || history.length === 0) {
     historyContainer.innerHTML = '<div class="empty">No run history yet.</div>';
     return;
@@ -263,13 +267,31 @@ function renderHistory(history) {
   historyContainer.innerHTML = history
     .map(
       (item) => `
-        <div class="history-item">
+        <button class="history-item${item.id === selectedId ? " is-active" : ""}" type="button" data-history-id="${item.id}">
           <span>${item.title} (${item.league || "Mixed"})</span>
           <span>${fmtDate(item.createdAt)}</span>
-        </div>
+        </button>
       `
     )
     .join("");
+}
+
+function setSelectedPrediction(id) {
+  const target = predictionHistory.find((entry) => entry.id === id);
+  if (!target) return;
+
+  selectedPredictionId = id;
+  renderLatest(target);
+  renderHistory(predictionHistory, selectedPredictionId);
+  viewLatestBtn.hidden = latestPrediction && selectedPredictionId === latestPrediction.id;
+  setPage("predictions");
+}
+
+function showLatestPrediction() {
+  selectedPredictionId = latestPrediction?.id || null;
+  renderLatest(latestPrediction);
+  renderHistory(predictionHistory, selectedPredictionId);
+  viewLatestBtn.hidden = true;
 }
 
 async function load() {
@@ -277,8 +299,17 @@ async function load() {
     const res = await fetch("/api/predictions");
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     const data = await res.json();
-    renderLatest(data.latest);
-    renderHistory(data.history);
+    latestPrediction = data.latest || null;
+    predictionHistory = Array.isArray(data.history) ? data.history : [];
+
+    if (!selectedPredictionId || !predictionHistory.some((entry) => entry.id === selectedPredictionId)) {
+      selectedPredictionId = latestPrediction?.id || null;
+    }
+
+    const selectedPrediction = predictionHistory.find((entry) => entry.id === selectedPredictionId) || latestPrediction;
+    renderLatest(selectedPrediction);
+    renderHistory(predictionHistory, selectedPredictionId);
+    viewLatestBtn.hidden = !latestPrediction || selectedPredictionId === latestPrediction.id;
     renderSectionStats(data.history);
     updatedAt.textContent = data.updatedAt
       ? `Last updated ${fmtDate(data.updatedAt)}`
@@ -289,6 +320,10 @@ async function load() {
   } catch (err) {
     latestContainer.innerHTML = `<div class="empty">Failed to load: ${err.message}</div>`;
     sectionStats.innerHTML = "";
+    predictionHistory = [];
+    latestPrediction = null;
+    selectedPredictionId = null;
+    viewLatestBtn.hidden = true;
     statLeague.textContent = "-";
     statRuns.textContent = "0";
     statLatestTime.textContent = "-";
@@ -296,6 +331,14 @@ async function load() {
 }
 
 refreshBtn.addEventListener("click", load);
+viewLatestBtn.addEventListener("click", showLatestPrediction);
+historyContainer.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-history-id]");
+  if (!button) return;
+  const id = Number(button.dataset.historyId);
+  if (!Number.isFinite(id)) return;
+  setSelectedPrediction(id);
+});
 for (const btn of tabButtons) {
   btn.addEventListener("click", () => setPage(btn.dataset.page || "overview"));
 }
