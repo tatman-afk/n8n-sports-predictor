@@ -108,6 +108,13 @@ function stripMarkdown(text) {
     .trim();
 }
 
+function normalizeSectionHeader(text) {
+  return stripMarkdown(String(text || ""))
+    .replace(/^#+\s*/, "")
+    .replace(/:\s*$/, "")
+    .trim();
+}
+
 function parseSections(rawMessage) {
   if (!rawMessage || typeof rawMessage !== "string") return null;
 
@@ -125,10 +132,11 @@ function parseSections(rawMessage) {
   const lines = rawMessage.split("\n");
 
   for (const rawLine of lines) {
-    const line = stripMarkdown(rawLine.trim());
+    const trimmedRaw = rawLine.trim();
+    const line = stripMarkdown(trimmedRaw);
     if (!line) continue;
 
-    const header = line.match(
+    const header = normalizeSectionHeader(trimmedRaw).match(
       /^(Safe Bets|Best Value Bets|Long Shots|2-Leg Parlays|3-Leg Parlays|Risk Notes)\b/i
     );
 
@@ -142,8 +150,8 @@ function parseSections(rawMessage) {
 
     if (!currentSection) continue;
 
-    const isBulletContinuation = /^-\s+/.test(line);
-    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^-\s*/, ""));
+    const isBulletContinuation = /^[-*]\s+/.test(trimmedRaw);
+    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^[-*]\s*/, ""));
     const items = sections.get(currentSection);
 
     if (isBulletContinuation && items.length > 0) {
@@ -181,10 +189,11 @@ function parseSectionsWithOutcomes(rawMessage) {
   }
 
   for (const rawLine of lines) {
-    const line = stripMarkdown(rawLine.trim());
+    const trimmedRaw = rawLine.trim();
+    const line = stripMarkdown(trimmedRaw);
     if (!line) continue;
 
-    const header = line.match(
+    const header = normalizeSectionHeader(trimmedRaw).match(
       /^(Safe Bets|Best Value Bets|Long Shots|2-Leg Parlays|3-Leg Parlays)\b/i
     );
 
@@ -198,8 +207,8 @@ function parseSectionsWithOutcomes(rawMessage) {
 
     if (!currentSection) continue;
 
-    const isBulletContinuation = /^-\s+/.test(line);
-    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^-\s*/, ""));
+    const isBulletContinuation = /^[-*]\s+/.test(trimmedRaw);
+    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^[-*]\s*/, ""));
     const items = sections.get(currentSection);
 
     if (isBulletContinuation && items.length > 0) {
@@ -263,24 +272,40 @@ function renderSectionCards(rawMessage) {
   function renderItemRow(item) {
     const parts = item.split("|").map((p) => p.trim());
     const pick = parts[0] || item;
-    const confidencePart = parts.find((p) => /^confidence:/i.test(p)) || "";
-    const reasonPart = parts.find((p) => /^reason:/i.test(p)) || "";
-    const confidence = confidencePart.replace(/^confidence:\s*/i, "").trim();
-    const confidenceLabel =
-      confidence && confidence.includes("%") ? confidence : confidence ? `${confidence}%` : "";
-    const reason = reasonPart.replace(/^reason:\s*/i, "").trim();
-
-    if (!confidence && !reason) {
-      return `<li class="pick-row"><div class="pick-main">${escapeHtml(pick)}</div></li>`;
-    }
+    const confidencePart = parts.find((p) => /^(confidence|model probability):/i.test(p)) || "";
+    const confidence = confidencePart.replace(/^(confidence|model probability):\s*/i, "").trim();
+    const confidenceLabel = confidence
+      ? confidence.includes("%")
+        ? confidence
+        : `${confidence}%`
+      : "";
+    const details = parts
+      .filter((p) => p !== pick && p !== confidencePart)
+      .map((part) => {
+        const match = part.match(/^([^:]+):\s*(.*)$/);
+        return match
+          ? { label: match[1].trim(), value: match[2].trim() }
+          : { label: "", value: part.trim() };
+      })
+      .filter((detail) => detail.value);
 
     return `
       <li class="pick-row">
-        <div class="pick-main">${escapeHtml(pick)}</div>
-        <div class="pick-meta">
+        <div class="pick-main-row">
+          <div class="pick-main">${escapeHtml(pick)}</div>
           ${confidenceLabel ? `<span class="pill">${escapeHtml(confidenceLabel)}</span>` : ""}
-          ${reason ? `<span class="reason">${escapeHtml(reason)}</span>` : ""}
         </div>
+        ${
+          details.length
+            ? `<div class="pick-meta">${details
+                .map((detail) =>
+                  detail.label
+                    ? `<p class="reason"><strong>${escapeHtml(detail.label)}:</strong> ${escapeHtml(detail.value)}</p>`
+                    : `<p class="reason">${escapeHtml(detail.value)}</p>`
+                )
+                .join("")}</div>`
+            : ""
+        }
       </li>
     `;
   }
