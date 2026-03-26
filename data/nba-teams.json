@@ -1,0 +1,452 @@
+[
+  {
+    "id": "ATL",
+    "name": "Atlanta Hawks",
+    "abbreviation": "ATL",
+    "espnAbbreviation": "ATL",
+    "arena": {
+      "id": "atl-state-farm-arena",
+      "name": "State Farm Arena",
+      "city": "Atlanta",
+      "state": "GA",
+      "timezone": "America/New_York",
+      "latitude": 33.7573,
+      "longitude": -84.3963
+    }
+  },
+  {
+    "id": "BOS",
+    "name": "Boston Celtics",
+    "abbreviation": "BOS",
+    "espnAbbreviation": "BOS",
+    "arena": {
+      "id": "bos-td-garden",
+      "name": "TD Garden",
+      "city": "Boston",
+      "state": "MA",
+      "timezone": "America/New_York",
+      "latitude": 42.3662,
+      "longitude": -71.0621
+    }
+  },
+  {
+    "id": "BKN",
+    "name": "Brooklyn Nets",
+    "abbreviation": "BKN",
+    "espnAbbreviation": "BKN",
+    "arena": {
+      "id": "bkn-barclays-center",
+      "name": "Barclays Center",
+      "city": "Brooklyn",
+      "state": "NY",
+      "timezone": "America/New_York",
+      "latitude": 40.6826,
+      "longitude": -73.9754
+    }
+  },
+  {
+    "id": "CHA",
+    "name": "Charlotte Hornets",
+    "abbreviation": "CHA",
+    "espnAbbreviation": "CHA",
+    "arena": {
+      "id": "cha-spectrum-center",
+      "name": "Spectrum Center",
+      "city": "Charlotte",
+      "state": "NC",
+      "timezone": "America/New_York",
+      "latitude": 35.2251,
+      "longitude": -80.8392
+    }
+  },
+  {
+    "id": "CHI",
+    "name": "Chicago Bulls",
+    "abbreviation": "CHI",
+    "espnAbbreviation": "CHI",
+    "arena": {
+      "id": "chi-united-center",
+      "name": "United Center",
+      "city": "Chicago",
+      "state": "IL",
+      "timezone": "America/Chicago",
+      "latitude": 41.8807,
+      "longitude": -87.6742
+    }
+  },
+  {
+    "id": "CLE",
+    "name": "Cleveland Cavaliers",
+    "abbreviation": "CLE",
+    "espnAbbreviation": "CLE",
+    "arena": {
+      "id": "cle-rocket-mortgage-fieldhouse",
+      "name": "Rocket Mortgage FieldHouse",
+      "city": "Cleveland",
+      "state": "OH",
+      "timezone": "America/New_York",
+      "latitude": 41.4965,
+      "longitude": -81.6882
+    }
+  },
+  {
+    "id": "DAL",
+    "name": "Dallas Mavericks",
+    "abbreviation": "DAL",
+    "espnAbbreviation": "DAL",
+    "arena": {
+      "id": "dal-american-airlines-center",
+      "name": "American Airlines Center",
+      "city": "Dallas",
+      "state": "TX",
+      "timezone": "America/Chicago",
+      "latitude": 32.7905,
+      "longitude": -96.8103
+    }
+  },
+  {
+    "id": "DEN",
+    "name": "Denver Nuggets",
+    "abbreviation": "DEN",
+    "espnAbbreviation": "DEN",
+    "arena": {
+      "id": "den-ball-arena",
+      "name": "Ball Arena",
+      "city": "Denver",
+      "state": "CO",
+      "timezone": "America/Denver",
+      "latitude": 39.7487,
+      "longitude": -105.0077
+    }
+  },
+  {
+    "id": "DET",
+    "name": "Detroit Pistons",
+    "abbreviation": "DET",
+    "espnAbbreviation": "DET",
+    "arena": {
+      "id": "det-little-caesars-arena",
+      "name": "Little Caesars Arena",
+      "city": "Detroit",
+      "state": "MI",
+      "timezone": "America/New_York",
+      "latitude": 42.3411,
+      "longitude": -83.0551
+    }
+  },
+  {
+    "id": "GSW",
+    "name": "Golden State Warriors",
+    "abbreviation": "GSW",
+    "espnAbbreviation": "GS",
+    "arena": {
+      "id": "gsw-chase-center",
+      "name": "Chase Center",
+      "city": "San Francisco",
+      "state": "CA",
+      "timezone": "America/Los_Angeles",
+      "latitude": 37.768,
+      "longitude": -122.3877
+    }
+  },
+  {
+    "id": "HOU",
+    "name": "Houston Rockets",
+    "abbreviation": "HOU",
+    "espnAbbreviation": "HOU",
+    "arena": {
+      "id": "hou-toyota-center",
+      "name": "Toyota Center",
+      "city": "Houston",
+      "state": "TX",
+      "timezone": "America/Chicago",
+      "latitude": 29.7508,
+      "longitude": -95.3621
+    }
+  },
+  {
+    "id": "IND",
+    "name": "Indiana Pacers",
+    "abbreviation": "IND",
+    "espnAbbreviation": "IND",
+    "arena": {
+      "id": "ind-gainbridge-fieldhouse",
+      "name": "Gainbridge Fieldhouse",
+      "city": "Indianapolis",
+      "state": "IN",
+      "timezone": "America/Indiana/Indianapolis",
+      "latitude": 39.7639,
+      "longitude": -86.1555
+    }
+  },
+  {
+    "id": "LAC",
+    "name": "LA Clippers",
+    "abbreviation": "LAC",
+    "espnAbbreviation": "LAC",
+    "arena": {
+      "id": "lac-intuit-dome",
+      "name": "Intuit Dome",
+      "city": "Inglewood",
+      "state": "CA",
+      "timezone": "America/Los_Angeles",
+      "latitude": 33.9535,
+      "longitude": -118.3392
+    }
+  },
+  {
+    "id": "LAL",
+    "name": "Los Angeles Lakers",
+    "abbreviation": "LAL",
+    "espnAbbreviation": "LAL",
+    "arena": {
+      "id": "lal-crypto-com-arena",
+      "name": "Crypto.com Arena",
+      "city": "Los Angeles",
+      "state": "CA",
+      "timezone": "America/Los_Angeles",
+      "latitude": 34.043,
+      "longitude": -118.2673
+    }
+  },
+  {
+    "id": "MEM",
+    "name": "Memphis Grizzlies",
+    "abbreviation": "MEM",
+    "espnAbbreviation": "MEM",
+    "arena": {
+      "id": "mem-fedexforum",
+      "name": "FedExForum",
+      "city": "Memphis",
+      "state": "TN",
+      "timezone": "America/Chicago",
+      "latitude": 35.1382,
+      "longitude": -90.0506
+    }
+  },
+  {
+    "id": "MIA",
+    "name": "Miami Heat",
+    "abbreviation": "MIA",
+    "espnAbbreviation": "MIA",
+    "arena": {
+      "id": "mia-kaseya-center",
+      "name": "Kaseya Center",
+      "city": "Miami",
+      "state": "FL",
+      "timezone": "America/New_York",
+      "latitude": 25.7814,
+      "longitude": -80.187
+    }
+  },
+  {
+    "id": "MIL",
+    "name": "Milwaukee Bucks",
+    "abbreviation": "MIL",
+    "espnAbbreviation": "MIL",
+    "arena": {
+      "id": "mil-fiserv-forum",
+      "name": "Fiserv Forum",
+      "city": "Milwaukee",
+      "state": "WI",
+      "timezone": "America/Chicago",
+      "latitude": 43.0451,
+      "longitude": -87.9172
+    }
+  },
+  {
+    "id": "MIN",
+    "name": "Minnesota Timberwolves",
+    "abbreviation": "MIN",
+    "espnAbbreviation": "MIN",
+    "arena": {
+      "id": "min-target-center",
+      "name": "Target Center",
+      "city": "Minneapolis",
+      "state": "MN",
+      "timezone": "America/Chicago",
+      "latitude": 44.9795,
+      "longitude": -93.276
+    }
+  },
+  {
+    "id": "NOP",
+    "name": "New Orleans Pelicans",
+    "abbreviation": "NOP",
+    "espnAbbreviation": "NO",
+    "arena": {
+      "id": "nop-smoothie-king-center",
+      "name": "Smoothie King Center",
+      "city": "New Orleans",
+      "state": "LA",
+      "timezone": "America/Chicago",
+      "latitude": 29.949,
+      "longitude": -90.0821
+    }
+  },
+  {
+    "id": "NYK",
+    "name": "New York Knicks",
+    "abbreviation": "NYK",
+    "espnAbbreviation": "NY",
+    "arena": {
+      "id": "nyk-madison-square-garden",
+      "name": "Madison Square Garden",
+      "city": "New York",
+      "state": "NY",
+      "timezone": "America/New_York",
+      "latitude": 40.7505,
+      "longitude": -73.9934
+    }
+  },
+  {
+    "id": "OKC",
+    "name": "Oklahoma City Thunder",
+    "abbreviation": "OKC",
+    "espnAbbreviation": "OKC",
+    "arena": {
+      "id": "okc-paycom-center",
+      "name": "Paycom Center",
+      "city": "Oklahoma City",
+      "state": "OK",
+      "timezone": "America/Chicago",
+      "latitude": 35.4634,
+      "longitude": -97.5151
+    }
+  },
+  {
+    "id": "ORL",
+    "name": "Orlando Magic",
+    "abbreviation": "ORL",
+    "espnAbbreviation": "ORL",
+    "arena": {
+      "id": "orl-kia-center",
+      "name": "Kia Center",
+      "city": "Orlando",
+      "state": "FL",
+      "timezone": "America/New_York",
+      "latitude": 28.5392,
+      "longitude": -81.3839
+    }
+  },
+  {
+    "id": "PHI",
+    "name": "Philadelphia 76ers",
+    "abbreviation": "PHI",
+    "espnAbbreviation": "PHI",
+    "arena": {
+      "id": "phi-wells-fargo-center",
+      "name": "Wells Fargo Center",
+      "city": "Philadelphia",
+      "state": "PA",
+      "timezone": "America/New_York",
+      "latitude": 39.9012,
+      "longitude": -75.1719
+    }
+  },
+  {
+    "id": "PHX",
+    "name": "Phoenix Suns",
+    "abbreviation": "PHX",
+    "espnAbbreviation": "PHX",
+    "arena": {
+      "id": "phx-footprint-center",
+      "name": "Footprint Center",
+      "city": "Phoenix",
+      "state": "AZ",
+      "timezone": "America/Phoenix",
+      "latitude": 33.4457,
+      "longitude": -112.0712
+    }
+  },
+  {
+    "id": "POR",
+    "name": "Portland Trail Blazers",
+    "abbreviation": "POR",
+    "espnAbbreviation": "POR",
+    "arena": {
+      "id": "por-moda-center",
+      "name": "Moda Center",
+      "city": "Portland",
+      "state": "OR",
+      "timezone": "America/Los_Angeles",
+      "latitude": 45.5316,
+      "longitude": -122.6668
+    }
+  },
+  {
+    "id": "SAC",
+    "name": "Sacramento Kings",
+    "abbreviation": "SAC",
+    "espnAbbreviation": "SAC",
+    "arena": {
+      "id": "sac-golden-1-center",
+      "name": "Golden 1 Center",
+      "city": "Sacramento",
+      "state": "CA",
+      "timezone": "America/Los_Angeles",
+      "latitude": 38.5802,
+      "longitude": -121.4996
+    }
+  },
+  {
+    "id": "SAS",
+    "name": "San Antonio Spurs",
+    "abbreviation": "SAS",
+    "espnAbbreviation": "SA",
+    "arena": {
+      "id": "sas-frost-bank-center",
+      "name": "Frost Bank Center",
+      "city": "San Antonio",
+      "state": "TX",
+      "timezone": "America/Chicago",
+      "latitude": 29.427,
+      "longitude": -98.4375
+    }
+  },
+  {
+    "id": "TOR",
+    "name": "Toronto Raptors",
+    "abbreviation": "TOR",
+    "espnAbbreviation": "TOR",
+    "arena": {
+      "id": "tor-scotiabank-arena",
+      "name": "Scotiabank Arena",
+      "city": "Toronto",
+      "state": "ON",
+      "timezone": "America/Toronto",
+      "latitude": 43.6435,
+      "longitude": -79.3791
+    }
+  },
+  {
+    "id": "UTA",
+    "name": "Utah Jazz",
+    "abbreviation": "UTA",
+    "espnAbbreviation": "UTAH",
+    "arena": {
+      "id": "uta-delta-center",
+      "name": "Delta Center",
+      "city": "Salt Lake City",
+      "state": "UT",
+      "timezone": "America/Denver",
+      "latitude": 40.7683,
+      "longitude": -111.9011
+    }
+  },
+  {
+    "id": "WAS",
+    "name": "Washington Wizards",
+    "abbreviation": "WAS",
+    "espnAbbreviation": "WSH",
+    "arena": {
+      "id": "was-capital-one-arena",
+      "name": "Capital One Arena",
+      "city": "Washington",
+      "state": "DC",
+      "timezone": "America/New_York",
+      "latitude": 38.8981,
+      "longitude": -77.0209
+    }
+  }
+]

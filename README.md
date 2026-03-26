@@ -11,16 +11,28 @@ Sports prediction pipeline using n8n + OpenAI + odds/score feeds, with a live da
 - n8n workflow export: `workflows/sports-betting-agent.json`
 - Express API + dashboard UI
 - Supabase schema and persistence
+- NBA warehousing scripts for teams, arenas, games, and travel features
 - Auto-settlement endpoint (`/api/settle`) for win/loss tagging
 
 ## Project Structure
 
 ```text
 .
+├── data/
+│   ├── nba-teams.json
+│   └── predictions.json
 ├── public/
 │   ├── app.js
 │   ├── index.html
 │   └── styles.css
+├── scripts/
+│   ├── buildArenaDistances.js
+│   ├── buildNbaFeatures.js
+│   ├── ingestNbaGames.js
+│   ├── seedNbaMetadata.js
+│   └── lib/
+│       ├── env.js
+│       └── nba.js
 ├── supabase/
 │   └── schema.sql
 ├── workflows/
@@ -124,3 +136,29 @@ Hosted on Render as a Web Service:
 - Build command: `npm install`
 - Start command: `npm start`
 - Runtime: Node
+
+## NBA Data Pipeline
+
+Run these after applying `supabase/schema.sql` in Supabase:
+
+```bash
+npm run seed:nba
+npm run distances:nba
+npm run ingest:nba -- 2024
+npm run features:nba -- 2024
+```
+
+What they do:
+
+- `seed:nba`: inserts the 30 NBA teams and home arenas
+- `distances:nba`: computes pairwise arena distances and estimated flight times
+- `ingest:nba -- 2024`: pulls the 2024-25 season schedule/results from ESPN's NBA scoreboard feed
+- `features:nba -- 2024`: derives rest, back-to-back, and travel features per team/game
+
+New warehouse tables:
+
+- `teams`
+- `arenas`
+- `games`
+- `arena_distances`
+- `team_game_features`

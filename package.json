@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "seed:nba": "node scripts/seedNbaMetadata.js",
+    "distances:nba": "node scripts/buildArenaDistances.js",
+    "ingest:nba": "node scripts/ingestNbaGames.js",
+    "features:nba": "node scripts/buildNbaFeatures.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
