@@ -9,10 +9,19 @@ const sectionStats = document.getElementById("sectionStats");
 const viewLatestBtn = document.getElementById("viewLatestBtn");
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const pageBlocks = Array.from(document.querySelectorAll(".panel-block"));
+const navBurger = document.getElementById("navBurger");
+const navDrawer = document.getElementById("navDrawer");
+const refreshBtnMobile = document.getElementById("refreshBtnMobile");
 const allowedPages = new Set(["overview", "predictions", "performance", "history"]);
+const revealTargets = Array.from(
+  document.querySelectorAll(
+    ".hero-body, .league-strip, .band-inner, .section-head, .perf-grid, .site-footer .footer-inner"
+  )
+);
 let latestPrediction = null;
 let predictionHistory = [];
 let selectedPredictionId = null;
+let revealObserver = null;
 
 function setPage(page, updateHash = true) {
   const targetPage = allowedPages.has(page) ? page : "overview";
@@ -35,6 +44,46 @@ function setPage(page, updateHash = true) {
   if (updateHash) {
     history.replaceState(null, "", `#${targetPage}`);
   }
+
+  closeMobileNav();
+}
+
+function closeMobileNav() {
+  if (!navDrawer || !navBurger) return;
+  navDrawer.classList.remove("is-open");
+  navBurger.classList.remove("is-open");
+}
+
+function revealElement(element) {
+  if (!element) return;
+  element.classList.add("is-visible");
+}
+
+function initRevealObserver() {
+  if (!("IntersectionObserver" in window)) {
+    for (const element of revealTargets) {
+      revealElement(element);
+    }
+    return;
+  }
+
+  revealObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        revealElement(entry.target);
+        revealObserver.unobserve(entry.target);
+      }
+    },
+    {
+      threshold: 0.12,
+      rootMargin: "0px 0px -8% 0px"
+    }
+  );
+
+  for (const element of revealTargets) {
+    revealObserver.observe(element);
+  }
 }
 
 function fmtDate(iso) {
@@ -49,6 +98,14 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function stripMarkdown(text) {
+  return String(text || "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .trim();
 }
 
 function parseSections(rawMessage) {
@@ -68,7 +125,7 @@ function parseSections(rawMessage) {
   const lines = rawMessage.split("\n");
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    const line = stripMarkdown(rawLine.trim());
     if (!line) continue;
 
     const header = line.match(
@@ -84,8 +141,18 @@ function parseSections(rawMessage) {
     }
 
     if (!currentSection) continue;
-    const cleaned = line.replace(/^\d+\)\s*/, "").replace(/^-\s*/, "");
-    sections.get(currentSection).push(cleaned);
+
+    const isBulletContinuation = /^-\s+/.test(line);
+    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^-\s*/, ""));
+    const items = sections.get(currentSection);
+
+    if (isBulletContinuation && items.length > 0) {
+      const previous = items[items.length - 1];
+      items[items.length - 1] = `${previous} | Reason: ${cleaned}`;
+      continue;
+    }
+
+    items.push(cleaned);
   }
 
   const hasAny = Array.from(sections.values()).some((items) => items.length > 0);
@@ -114,7 +181,7 @@ function parseSectionsWithOutcomes(rawMessage) {
   }
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    const line = stripMarkdown(rawLine.trim());
     if (!line) continue;
 
     const header = line.match(
@@ -130,8 +197,19 @@ function parseSectionsWithOutcomes(rawMessage) {
     }
 
     if (!currentSection) continue;
-    const cleaned = line.replace(/^\d+\)\s*/, "").replace(/^-\s*/, "");
-    sections.get(currentSection).push({ text: cleaned, outcome: getOutcome(cleaned) });
+
+    const isBulletContinuation = /^-\s+/.test(line);
+    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^-\s*/, ""));
+    const items = sections.get(currentSection);
+
+    if (isBulletContinuation && items.length > 0) {
+      const previous = items[items.length - 1];
+      previous.text = `${previous.text} | Reason: ${cleaned}`;
+      previous.outcome = previous.outcome || getOutcome(cleaned);
+      continue;
+    }
+
+    items.push({ text: cleaned, outcome: getOutcome(cleaned) });
   }
 
   return sections;
@@ -232,11 +310,13 @@ function renderLatest(latest) {
   const picksHtml = (latest.games || [])
     .map(
       (g) => `
-      <article class="pick">
-        <p><strong>${g.matchup || "Unknown matchup"}</strong></p>
-        <p>Pick: ${g.pick || "N/A"}${g.odds ? ` (${g.odds})` : ""}</p>
-        <p>Confidence: ${g.confidence || "N/A"}</p>
-        ${g.reason ? `<p>${g.reason}</p>` : ""}
+      <article class="pick-card">
+        <div class="pick-card-top">
+          <p class="pick-card-matchup">${escapeHtml(g.matchup || "Unknown matchup")}</p>
+          <span class="pick-card-chip">${escapeHtml(g.confidence || "N/A")}</span>
+        </div>
+        <p class="pick-card-pick">Pick: ${escapeHtml(g.pick || "N/A")}${g.odds ? ` <span>${escapeHtml(g.odds)}</span>` : ""}</p>
+        ${g.reason ? `<p class="pick-card-reason">${escapeHtml(g.reason)}</p>` : ""}
       </article>
     `
     )
@@ -245,13 +325,13 @@ function renderLatest(latest) {
   latestContainer.innerHTML = `
     <article class="latest-card">
       <div class="latest-meta">
-        <span><strong>${latest.title}</strong></span>
-        <span>League: ${latest.league || "Mixed"}</span>
-        <span>Created: ${fmtDate(latest.createdAt)}</span>
+        <span><strong>${escapeHtml(latest.title || "Latest Run")}</strong></span>
+        <span>League: ${escapeHtml(latest.league || "Mixed")}</span>
+        <span>Created: ${escapeHtml(fmtDate(latest.createdAt))}</span>
       </div>
       <div class="latest-body">
-        ${latest.aiSummary ? `<p>${latest.aiSummary}</p>` : ""}
-        ${picksHtml || ""}
+        ${latest.aiSummary ? `<div class="summary-box"><p>${escapeHtml(latest.aiSummary)}</p></div>` : ""}
+        ${picksHtml ? `<div class="pick-card-grid">${picksHtml}</div>` : ""}
         ${latest.rawMessage ? renderSectionCards(latest.rawMessage) : ""}
       </div>
     </article>
@@ -311,6 +391,9 @@ async function load() {
     renderHistory(predictionHistory, selectedPredictionId);
     viewLatestBtn.hidden = !latestPrediction || selectedPredictionId === latestPrediction.id;
     renderSectionStats(data.history);
+    latestContainer.classList.add("is-visible");
+    historyContainer.classList.add("is-visible");
+    revealElement(sectionStats);
     updatedAt.textContent = data.updatedAt
       ? `Last updated ${fmtDate(data.updatedAt)}`
       : "Waiting for first prediction run...";
@@ -327,10 +410,18 @@ async function load() {
     statLeague.textContent = "-";
     statRuns.textContent = "0";
     statLatestTime.textContent = "-";
+    latestContainer.classList.add("is-visible");
+    historyContainer.classList.add("is-visible");
   }
 }
 
 refreshBtn.addEventListener("click", load);
+if (refreshBtnMobile) {
+  refreshBtnMobile.addEventListener("click", () => {
+    closeMobileNav();
+    load();
+  });
+}
 viewLatestBtn.addEventListener("click", showLatestPrediction);
 historyContainer.addEventListener("click", (event) => {
   const button = event.target.closest("[data-history-id]");
@@ -343,7 +434,15 @@ for (const btn of tabButtons) {
   btn.addEventListener("click", () => setPage(btn.dataset.page || "overview"));
 }
 
+if (navBurger && navDrawer) {
+  navBurger.addEventListener("click", () => {
+    navDrawer.classList.toggle("is-open");
+    navBurger.classList.toggle("is-open");
+  });
+}
+
 setPage(location.hash.replace("#", ""), false);
 window.addEventListener("hashchange", () => setPage(location.hash.replace("#", ""), false));
+initRevealObserver();
 load();
 setInterval(load, 60000);

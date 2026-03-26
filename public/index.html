@@ -3,91 +3,170 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sports Predictor Dashboard</title>
+    <title>SurgeBet | Sports Prediction Intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,700&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div class="brand-block">
-          <img class="brand-logo" src="/assets/surgebet-logo.png" alt="Surge Bet logo" onerror="this.style.display='none'" />
-        </div>
-        <nav class="top-tabs" aria-label="Dashboard sections">
+    <header class="global-nav">
+      <div class="nav-inner">
+        <a class="nav-logo" href="#overview" aria-label="SurgeBet dashboard">
+          <img
+            src="/assets/surgebet-logo.png"
+            alt="SurgeBet"
+            class="nav-logo-img"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+          />
+          <span class="nav-logo-fallback">SurgeBet</span>
+        </a>
+
+        <nav class="nav-tabs" aria-label="Sections">
           <button class="tab-btn is-active" data-page="overview" type="button">Dashboard</button>
           <button class="tab-btn" data-page="predictions" type="button">Predictions</button>
           <button class="tab-btn" data-page="performance" type="button">Performance</button>
           <button class="tab-btn" data-page="history" type="button">History</button>
         </nav>
-        <div class="top-actions">
-          <button class="login-btn" type="button">Login</button>
-          <button id="refreshBtn" class="refresh-btn">Refresh Picks</button>
-        </div>
-      </header>
 
-      <section class="hero-panel">
-        <h1>Ask. Analyze. <span>Picks in Seconds.</span></h1>
-        <p class="hero-sub">Surge Bet scans market movement, match context, and live signal trends to surface +EV opportunities with clear confidence tiers.</p>
-        <div class="hero-actions">
-          <button class="hero-btn primary" type="button">Join Now</button>
-          <button class="hero-btn ghost" type="button">Watch Demo</button>
+        <div class="nav-actions">
+          <button id="refreshBtn" class="nav-refresh" type="button">Refresh Picks</button>
         </div>
-        <p id="updatedAt" class="updated-pill">Waiting for first prediction run...</p>
-        <p class="league-label">COVERS ALL MAJOR SPORTS LEAGUES</p>
-        <div class="league-grid">
-          <article class="league-tile"><img src="/assets/football.svg" alt="Football" /></article>
-          <article class="league-tile"><img src="/assets/basketball.svg" alt="Basketball" /></article>
-          <article class="league-tile"><img src="/assets/baseball.svg" alt="Baseball" /></article>
-          <article class="league-tile"><img src="/assets/hockey.svg" alt="Hockey" /></article>
-          <article class="league-tile"><img src="/assets/mma.svg" alt="MMA" /></article>
-          <article class="league-tile"><img src="/assets/soccer.svg" alt="Soccer" /></article>
+
+        <button id="navBurger" class="nav-burger" type="button" aria-label="Open navigation">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+
+      <div id="navDrawer" class="nav-drawer">
+        <button class="tab-btn is-active" data-page="overview" type="button">Dashboard</button>
+        <button class="tab-btn" data-page="predictions" type="button">Predictions</button>
+        <button class="tab-btn" data-page="performance" type="button">Performance</button>
+        <button class="tab-btn" data-page="history" type="button">History</button>
+        <button id="refreshBtnMobile" class="nav-refresh nav-refresh-mobile" type="button">
+          Refresh Picks
+        </button>
+      </div>
+    </header>
+
+    <main class="page-main">
+      <section class="hero-section panel-block" data-pages="overview,predictions,performance,history">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-grid" aria-hidden="true"></div>
+
+        <div class="hero-body">
+          <p class="hero-eyebrow">
+            <span class="eyebrow-dot"></span>
+            Model-Driven Sports Intelligence
+          </p>
+          <h1 class="hero-headline">
+            Ask. Analyze.<br />
+            <em>Picks in Seconds.</em>
+          </h1>
+          <p class="hero-sub">
+            SurgeBet combines market context, trained matchup models, and historical performance
+            to surface picks with clear evidence and confidence.
+          </p>
+          <div class="hero-cta-row">
+            <div class="hero-kpi">
+              <span class="hero-kpi-label">Live Feed</span>
+              <span class="hero-kpi-value">Model + AI</span>
+            </div>
+            <div class="hero-kpi">
+              <span class="hero-kpi-label">Focus</span>
+              <span class="hero-kpi-value">Signal Over Noise</span>
+            </div>
+          </div>
+          <p id="updatedAt" class="status-pill">Waiting for first prediction run...</p>
+        </div>
+
+        <div class="league-strip">
+          <p class="league-strip-label">Coverage Across Major Sports</p>
+          <div class="league-row">
+            <article class="league-tile"><img src="/assets/football.svg" alt="Football" /><span>NFL</span></article>
+            <article class="league-tile"><img src="/assets/basketball.svg" alt="Basketball" /><span>NBA</span></article>
+            <article class="league-tile"><img src="/assets/baseball.svg" alt="Baseball" /><span>MLB</span></article>
+            <article class="league-tile"><img src="/assets/hockey.svg" alt="Hockey" /><span>NHL</span></article>
+            <article class="league-tile"><img src="/assets/mma.svg" alt="MMA" /><span>MMA</span></article>
+            <article class="league-tile"><img src="/assets/soccer.svg" alt="Soccer" /><span>Soccer</span></article>
+          </div>
         </div>
       </section>
 
-      <div class="content-grid">
-        <section class="rail-card stats-grid stats-card panel-block" data-pages="overview,predictions,performance,history">
-          <article class="stat">
-            <p class="stat-label">League</p>
-            <p id="statLeague" class="stat-value">-</p>
+      <section class="stats-band panel-block" data-pages="overview,predictions,performance,history">
+        <div class="band-inner">
+          <article class="band-stat">
+            <p class="band-label">League</p>
+            <p id="statLeague" class="band-value">-</p>
           </article>
-          <article class="stat">
-            <p class="stat-label">Saved Runs</p>
-            <p id="statRuns" class="stat-value">0</p>
+          <div class="band-divider"></div>
+          <article class="band-stat">
+            <p class="band-label">Saved Runs</p>
+            <p id="statRuns" class="band-value">0</p>
           </article>
-          <article class="stat">
-            <p class="stat-label">Latest Run</p>
-            <p id="statLatestTime" class="stat-value">-</p>
+          <div class="band-divider"></div>
+          <article class="band-stat">
+            <p class="band-label">Latest Run</p>
+            <p id="statLatestTime" class="band-value">-</p>
           </article>
-        </section>
+        </div>
+      </section>
 
-        <section class="rail-card perf-wrap panel-block" data-pages="overview,performance">
-          <h2>Section Performance</h2>
-          <p class="panel-sub">Win/loss rate by pick category from settled picks in history.</p>
-          <div id="sectionStats" class="section-stats"></div>
-        </section>
-
-        <section class="panel panel-main panel-block" data-pages="overview,predictions">
-          <div class="panel-head">
+      <section class="content-section panel-block" data-pages="overview,performance">
+        <div class="section-inner">
+          <header class="section-head">
             <div>
-              <h2>Latest Predictions</h2>
-              <p class="panel-sub">Current recommendation set from your most recent run.</p>
+              <h2 class="section-title">Section Performance</h2>
+              <p class="section-sub">Settled results by pick category across saved runs.</p>
             </div>
-            <button id="viewLatestBtn" class="view-latest-btn" type="button" hidden>Back to Latest</button>
-          </div>
-          <div id="latestContainer" class="empty">No predictions yet.</div>
-        </section>
+          </header>
+          <div id="sectionStats" class="perf-grid"></div>
+        </div>
+      </section>
 
-        <section class="panel panel-history panel-block" data-pages="overview,history">
-          <h2>Recent Runs</h2>
-          <p class="panel-sub">Most recent saved runs from your Supabase history.</p>
-          <div id="historyContainer" class="history"></div>
-        </section>
-      </div>
+      <section class="content-section panel-block" data-pages="overview,predictions">
+        <div class="section-inner">
+          <header class="section-head">
+            <div>
+              <h2 class="section-title">Latest Predictions</h2>
+              <p class="section-sub">The most recent recommendation set from your pipeline.</p>
+            </div>
+            <button id="viewLatestBtn" class="btn-back" type="button" hidden>Back to Latest</button>
+          </header>
+          <div id="latestContainer" class="empty">No predictions yet.</div>
+        </div>
+      </section>
+
+      <section class="content-section panel-block" data-pages="overview,history">
+        <div class="section-inner">
+          <header class="section-head">
+            <div>
+              <h2 class="section-title">Recent Runs</h2>
+              <p class="section-sub">A fast-scanning archive of your latest saved prediction runs.</p>
+            </div>
+          </header>
+          <div id="historyContainer" class="history-scroll"></div>
+        </div>
+      </section>
+
+      <footer class="site-footer panel-block" data-pages="overview,predictions,performance,history">
+        <div class="footer-inner">
+          <div class="footer-brand">
+            <p class="footer-mark">SurgeBet</p>
+            <p class="footer-copy">
+              Model-first picks, historical context, and a cleaner way to review run history.
+            </p>
+          </div>
+          <div class="footer-note">
+            Informational only. Sports betting carries risk. Use responsibly.
+          </div>
+        </div>
+      </footer>
     </main>
 
     <script src="/app.js"></script>
