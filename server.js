@@ -4,6 +4,7 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const nbaTeams = require("./data/nba-teams.json");
 const { buildModelFeatureObject, scoreFeatureObject } = require("./scripts/lib/nbaModel");
+const { fetchAllRows } = require("./scripts/lib/supabasePagination");
 
 require("dotenv").config();
 
@@ -334,22 +335,22 @@ function loadNbaModelArtifact() {
 }
 
 async function loadNbaWarehouse() {
-  const [{ data: games, error: gamesError }, { data: features, error: featuresError }, { data: distances, error: distancesError }] =
-    await Promise.all([
-      supabase.from("games").select("*"),
-      supabase.from("team_game_features").select("*"),
-      supabase.from("arena_distances").select("*")
-    ]);
-
-  if (gamesError) throw gamesError;
-  if (featuresError) throw featuresError;
-  if (distancesError) throw distancesError;
+  const [games, features, distances, boxscores] = await Promise.all([
+    fetchAllRows(() => supabase.from("games").select("*")),
+    fetchAllRows(() => supabase.from("team_game_features").select("*")),
+    fetchAllRows(() => supabase.from("arena_distances").select("*")),
+    fetchAllRows(() => supabase.from("team_boxscores").select("*"))
+  ]);
 
   const gamesById = new Map((games || []).map((game) => [game.game_id, game]));
+  const boxscoresByKey = new Map(
+    (boxscores || []).map((row) => [`${row.game_id}:${row.team_id}`, row])
+  );
   const featureRows = (features || [])
     .map((row) => ({
       ...row,
-      game: gamesById.get(row.game_id) || null
+      game: gamesById.get(row.game_id) || null,
+      boxscore: boxscoresByKey.get(`${row.game_id}:${row.team_id}`) || null
     }))
     .filter((row) => row.game);
   const completedRows = featureRows.filter((row) => row.game.home_win != null);

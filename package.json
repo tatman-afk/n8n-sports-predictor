@@ -9,6 +9,7 @@
     "seed:nba": "node scripts/seedNbaMetadata.js",
     "distances:nba": "node scripts/buildArenaDistances.js",
     "ingest:nba": "node scripts/ingestNbaGames.js",
+    "boxscores:nba": "node scripts/ingestNbaBoxscores.js",
     "features:nba": "node scripts/buildNbaFeatures.js",
     "export:nba-training": "node scripts/exportNbaTrainingData.js",
     "train:nba-model": "python3 model/train_nba_model.py"

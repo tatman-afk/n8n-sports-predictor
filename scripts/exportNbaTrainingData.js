@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { getSupabaseClient } = require("./lib/env");
 const { buildModelFeatureObject, FEATURE_COLUMNS, getTeamWin } = require("./lib/nbaModel");
+const { fetchAllRows } = require("./lib/supabasePagination");
 
 function csvEscape(value) {
   const stringValue = value == null ? "" : String(value);
@@ -36,31 +37,51 @@ async function main() {
     process.argv[3] ||
     path.join(__dirname, "..", "model", "generated", `nba_training_${season || "all"}.csv`);
 
-  const gamesQuery = supabase
-    .from("games")
-    .select("*")
-    .not("home_win", "is", null)
-    .order("game_datetime_utc", { ascending: true });
-  const featuresQuery = supabase.from("team_game_features").select("*");
+  const games = await fetchAllRows(() => {
+    const query = supabase
+      .from("games")
+      .select("*")
+      .not("home_win", "is", null)
+      .order("game_datetime_utc", { ascending: true });
 
-  if (season) {
-    gamesQuery.eq("season", season);
-  }
+    if (season) {
+      query.eq("season", season);
+    }
 
-  const [{ data: games, error: gamesError }, { data: features, error: featuresError }] =
-    await Promise.all([gamesQuery, featuresQuery]);
-
-  if (gamesError) throw gamesError;
-  if (featuresError) throw featuresError;
+    return query;
+  });
 
   const gamesById = new Map((games || []).map((game) => [game.game_id, game]));
+  const gameIds = Array.from(gamesById.keys());
+
+  if (!gameIds.length) {
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, "game_id,game_datetime_utc,season,team_id,opponent_team_id,won_game\n", "utf8");
+    console.log(`Exported 0 training rows to ${outputPath}`);
+    return;
+  }
+
+  const features = await fetchAllRows(() =>
+    supabase.from("team_game_features").select("*").in("game_id", gameIds)
+  );
+  const boxscores = await fetchAllRows(() =>
+    supabase.from("team_boxscores").select("*").in("game_id", gameIds)
+  );
+
+  const boxscoresByKey = new Map(
+    (boxscores || []).map((row) => [`${row.game_id}:${row.team_id}`, row])
+  );
   const featuresByGameId = new Map();
 
   for (const row of features || []) {
     const game = gamesById.get(row.game_id);
     if (!game) continue;
     const bucket = featuresByGameId.get(row.game_id) || [];
-    bucket.push({ ...row, game });
+    bucket.push({
+      ...row,
+      game,
+      boxscore: boxscoresByKey.get(`${row.game_id}:${row.team_id}`) || null
+    });
     featuresByGameId.set(row.game_id, bucket);
   }
 

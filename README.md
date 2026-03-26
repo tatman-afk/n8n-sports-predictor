@@ -30,6 +30,7 @@ Sports prediction pipeline using n8n + OpenAI + odds/score feeds, with a live da
 │   ├── buildArenaDistances.js
 │   ├── buildNbaFeatures.js
 │   ├── exportNbaTrainingData.js
+│   ├── ingestNbaBoxscores.js
 │   ├── ingestNbaGames.js
 │   ├── seedNbaMetadata.js
 │   └── lib/
@@ -182,6 +183,7 @@ Then use `{{$json.prompt}}` as the main evidence block in your OpenAI node inste
 After loading the warehouse tables, you can train a baseline logistic-regression model:
 
 ```bash
+npm run boxscores:nba -- 2024
 npm run export:nba-training -- 2024-25
 npm run train:nba-model
 ```
@@ -193,6 +195,7 @@ This creates:
 
 The live `POST /api/nba/pick-context` endpoint will automatically include model probabilities if `model/nba-logistic-model.json` exists on the deployed server.
 Commit and deploy `model/nba-logistic-model.json` if you want Render to serve trained-model probabilities.
+The training export includes rolling offense, rolling defense allowed, and offense-vs-defense matchup edges for major team stats such as shooting, rebounds, assists, turnovers, steals, blocks, and fouls.
 
 ## Deployment
 
@@ -211,6 +214,7 @@ npm run seed:nba
 npm run distances:nba
 npm run ingest:nba -- 2024
 npm run features:nba -- 2024
+npm run boxscores:nba -- 2024
 ```
 
 What they do:
@@ -219,11 +223,13 @@ What they do:
 - `distances:nba`: computes pairwise arena distances and estimated flight times
 - `ingest:nba -- 2024`: pulls the 2024-25 season schedule/results from ESPN's NBA scoreboard feed
 - `features:nba -- 2024`: derives rest, back-to-back, and travel features per team/game
+- `boxscores:nba -- 2024`: pulls completed-game team box scores from ESPN summary pages
 
 New warehouse tables:
 
 - `teams`
 - `arenas`
 - `games`
+- `team_boxscores`
 - `arena_distances`
 - `team_game_features`

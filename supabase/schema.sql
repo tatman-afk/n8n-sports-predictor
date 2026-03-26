@@ -90,3 +90,34 @@ create table if not exists public.team_game_features (
 
 create index if not exists team_game_features_team_id_idx
   on public.team_game_features (team_id, game_id);
+
+create table if not exists public.team_boxscores (
+  game_id text not null references public.games (game_id) on delete cascade,
+  team_id text not null references public.teams (id),
+  opponent_team_id text not null references public.teams (id),
+  is_home boolean not null,
+  points integer,
+  points_allowed integer,
+  field_goals_made integer,
+  field_goals_attempted integer,
+  field_goal_pct double precision,
+  three_pointers_made integer,
+  three_pointers_attempted integer,
+  three_point_pct double precision,
+  free_throws_made integer,
+  free_throws_attempted integer,
+  free_throw_pct double precision,
+  rebounds integer,
+  offensive_rebounds integer,
+  defensive_rebounds integer,
+  assists integer,
+  steals integer,
+  blocks integer,
+  turnovers integer,
+  fouls integer,
+  created_at timestamptz not null default now(),
+  primary key (game_id, team_id)
+);
+
+create index if not exists team_boxscores_team_id_idx
+  on public.team_boxscores (team_id, game_id);

@@ -1,4 +1,4 @@
-const FEATURE_COLUMNS = [
+const BASE_FEATURE_COLUMNS = [
   "team_is_home",
   "game_local_hour",
   "game_day_of_week",
@@ -41,6 +41,40 @@ const FEATURE_COLUMNS = [
   "point_diff_10_diff"
 ];
 
+const STAT_DEFINITIONS = [
+  { key: "points", offenseKey: "points", defenseKey: "pointsAllowed" },
+  { key: "field_goal_pct", offenseKey: "fieldGoalPct", defenseKey: "oppFieldGoalPct" },
+  { key: "three_point_pct", offenseKey: "threePointPct", defenseKey: "oppThreePointPct" },
+  { key: "free_throw_pct", offenseKey: "freeThrowPct", defenseKey: "oppFreeThrowPct" },
+  { key: "rebounds", offenseKey: "rebounds", defenseKey: "oppRebounds" },
+  { key: "offensive_rebounds", offenseKey: "offensiveRebounds", defenseKey: "oppOffensiveRebounds" },
+  { key: "defensive_rebounds", offenseKey: "defensiveRebounds", defenseKey: "oppDefensiveRebounds" },
+  { key: "assists", offenseKey: "assists", defenseKey: "oppAssists" },
+  { key: "steals", offenseKey: "steals", defenseKey: "oppSteals" },
+  { key: "blocks", offenseKey: "blocks", defenseKey: "oppBlocks" },
+  { key: "turnovers", offenseKey: "turnovers", defenseKey: "oppTurnovers" },
+  { key: "fouls", offenseKey: "fouls", defenseKey: "oppFouls" }
+];
+
+const WINDOW_SIZES = [5, 10];
+
+const STAT_FEATURE_COLUMNS = [];
+for (const stat of STAT_DEFINITIONS) {
+  for (const window of WINDOW_SIZES) {
+    STAT_FEATURE_COLUMNS.push(
+      `team_last_${window}_${stat.key}_offense`,
+      `team_last_${window}_${stat.key}_defense_allowed`,
+      `opp_last_${window}_${stat.key}_offense`,
+      `opp_last_${window}_${stat.key}_defense_allowed`,
+      `${stat.key}_offense_diff_last_${window}`,
+      `${stat.key}_defense_diff_last_${window}`,
+      `${stat.key}_matchup_edge_last_${window}`
+    );
+  }
+}
+
+const FEATURE_COLUMNS = [...BASE_FEATURE_COLUMNS, ...STAT_FEATURE_COLUMNS];
+
 function toNumber(value, fallback = 0) {
   return Number.isFinite(value) ? Number(value) : fallback;
 }
@@ -67,17 +101,56 @@ function average(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function extractBoxscoreStats(row) {
+  const box = row?.boxscore || {};
+  return {
+    points: toNumber(box.points),
+    pointsAllowed: toNumber(box.pointsAllowed),
+    fieldGoalPct: toNumber(box.fieldGoalPct),
+    oppFieldGoalPct: toNumber(box.oppFieldGoalPct),
+    threePointPct: toNumber(box.threePointPct),
+    oppThreePointPct: toNumber(box.oppThreePointPct),
+    freeThrowPct: toNumber(box.freeThrowPct),
+    oppFreeThrowPct: toNumber(box.oppFreeThrowPct),
+    rebounds: toNumber(box.rebounds),
+    oppRebounds: toNumber(box.oppRebounds),
+    offensiveRebounds: toNumber(box.offensiveRebounds),
+    oppOffensiveRebounds: toNumber(box.oppOffensiveRebounds),
+    defensiveRebounds: toNumber(box.defensiveRebounds),
+    oppDefensiveRebounds: toNumber(box.oppDefensiveRebounds),
+    assists: toNumber(box.assists),
+    oppAssists: toNumber(box.oppAssists),
+    steals: toNumber(box.steals),
+    oppSteals: toNumber(box.oppSteals),
+    blocks: toNumber(box.blocks),
+    oppBlocks: toNumber(box.oppBlocks),
+    turnovers: toNumber(box.turnovers),
+    oppTurnovers: toNumber(box.oppTurnovers),
+    fouls: toNumber(box.fouls),
+    oppFouls: toNumber(box.oppFouls)
+  };
+}
+
 function buildRollingSummary(historyRows) {
   const completedRows = historyRows.filter((row) => getTeamWin(row) != null);
   const last5 = completedRows.slice(-5);
   const last10 = completedRows.slice(-10);
-
-  return {
+  const summary = {
     last5WinPct: average(last5.map((row) => (getTeamWin(row) ? 1 : 0))),
     last10WinPct: average(last10.map((row) => (getTeamWin(row) ? 1 : 0))),
     last5PointDiff: average(last5.map((row) => getTeamPointDiff(row))),
     last10PointDiff: average(last10.map((row) => getTeamPointDiff(row)))
   };
+
+  for (const stat of STAT_DEFINITIONS) {
+    for (const window of WINDOW_SIZES) {
+      const sample = completedRows.slice(-window).map(extractBoxscoreStats);
+      summary[`last${window}${stat.offenseKey}`] = average(sample.map((row) => row[stat.offenseKey]));
+      summary[`last${window}${stat.defenseKey}`] = average(sample.map((row) => row[stat.defenseKey]));
+    }
+  }
+
+  return summary;
 }
 
 function buildModelFeatureObject({ teamSpot, opponentSpot, teamRows, opponentRows, isPlayoff }) {
@@ -130,6 +203,23 @@ function buildModelFeatureObject({ teamSpot, opponentSpot, teamRows, opponentRow
     point_diff_10_diff: teamSummary.last10PointDiff - opponentSummary.last10PointDiff
   };
 
+  for (const stat of STAT_DEFINITIONS) {
+    for (const window of WINDOW_SIZES) {
+      const teamOffense = teamSummary[`last${window}${stat.offenseKey}`];
+      const teamDefense = teamSummary[`last${window}${stat.defenseKey}`];
+      const oppOffense = opponentSummary[`last${window}${stat.offenseKey}`];
+      const oppDefense = opponentSummary[`last${window}${stat.defenseKey}`];
+
+      featureObject[`team_last_${window}_${stat.key}_offense`] = teamOffense;
+      featureObject[`team_last_${window}_${stat.key}_defense_allowed`] = teamDefense;
+      featureObject[`opp_last_${window}_${stat.key}_offense`] = oppOffense;
+      featureObject[`opp_last_${window}_${stat.key}_defense_allowed`] = oppDefense;
+      featureObject[`${stat.key}_offense_diff_last_${window}`] = teamOffense - oppOffense;
+      featureObject[`${stat.key}_defense_diff_last_${window}`] = oppDefense - teamDefense;
+      featureObject[`${stat.key}_matchup_edge_last_${window}`] = teamOffense - oppDefense;
+    }
+  }
+
   return featureObject;
 }
 
@@ -163,6 +253,8 @@ function scoreFeatureObject(featureObject, artifact) {
 
 module.exports = {
   FEATURE_COLUMNS,
+  STAT_DEFINITIONS,
+  WINDOW_SIZES,
   getTeamWin,
   getTeamPointDiff,
   buildRollingSummary,
