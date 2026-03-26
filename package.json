@@ -12,7 +12,8 @@
     "boxscores:nba": "node scripts/ingestNbaBoxscores.js",
     "features:nba": "node scripts/buildNbaFeatures.js",
     "export:nba-training": "node scripts/exportNbaTrainingData.js",
-    "train:nba-model": "python3 model/train_nba_model.py"
+    "train:nba-model": "python3 model/train_nba_model.py",
+    "refresh:nba-model": "node scripts/refreshNbaModel.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

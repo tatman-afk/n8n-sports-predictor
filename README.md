@@ -197,6 +197,30 @@ The live `POST /api/nba/pick-context` endpoint will automatically include model 
 Commit and deploy `model/nba-logistic-model.json` if you want Render to serve trained-model probabilities.
 The training export includes rolling offense, rolling defense allowed, and offense-vs-defense matchup edges for major team stats such as shooting, rebounds, assists, turnovers, steals, blocks, and fouls.
 
+## Daily Model Refresh
+
+You can refresh the current NBA season model end-to-end with:
+
+```bash
+npm run refresh:nba-model
+```
+
+This command:
+
+- ingests the current season's games
+- rebuilds travel/rest features
+- ingests team boxscores
+- exports a fresh training dataset
+- retrains `model/nba-logistic-model.json`
+
+The repo also includes a scheduled GitHub Actions workflow at `.github/workflows/daily-nba-model-refresh.yml`.
+To enable it, add these GitHub repository secrets:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+The workflow runs daily, retrains the model, and commits the updated model artifact back to `main` when it changes.
+
 ## Deployment
 
 Hosted on Render as a Web Service:
