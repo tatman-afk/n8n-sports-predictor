@@ -104,6 +104,31 @@ Example body:
 }
 ```
 
+### `POST /api/nba/pick-context`
+
+Builds AI-ready NBA matchup context from your historical warehouse tables.
+
+Body:
+
+```json
+{
+  "games": [
+    {
+      "home_team": "Boston Celtics",
+      "away_team": "Miami Heat",
+      "commence_time": "2026-03-27T23:30:00Z",
+      "bookmakers": []
+    }
+  ]
+}
+```
+
+Response includes:
+
+- `games`: structured matchup stats for each team
+- `prompt`: a plain-text block ready to feed into the OpenAI node in n8n
+- `unresolvedTeams`: any team names that could not be mapped
+
 ## n8n Integration
 
 ### Prediction node
@@ -128,6 +153,23 @@ Example body:
   "daysBack": 31
 }
 ```
+
+### NBA pick-context node
+
+- Method: `POST`
+- URL: `https://sports-predictor-ai.onrender.com/api/nba/pick-context`
+- Headers:
+  - `Content-Type: application/json`
+  - `x-ingest-key: <your INGEST_KEY>` (if enabled)
+- Body:
+
+```json
+{
+  "games": {{ $json }}
+}
+```
+
+Then use `{{$json.prompt}}` as the main evidence block in your OpenAI node instead of sending odds alone.
 
 ## Deployment
 

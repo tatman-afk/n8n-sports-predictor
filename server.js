@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
+const nbaTeams = require("./data/nba-teams.json");
 
 require("dotenv").config();
 
@@ -17,6 +18,8 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const NBA_TEAM_LOOKUP = buildNbaTeamLookup(nbaTeams);
+const NBA_ARENAS_BY_TEAM_ID = new Map(nbaTeams.map((team) => [team.id, team.arena]));
 const ESPN_LEAGUES = [
   { sport: "basketball", league: "nba" },
   { sport: "baseball", league: "mlb" },
@@ -55,6 +58,456 @@ function teamMatch(candidate, aliases) {
     if (normalized.length >= 5 && alias.includes(normalized)) return true;
   }
   return false;
+}
+
+function buildNbaTeamLookup(teams) {
+  const lookup = new Map();
+  const manualAliases = {
+    "atlanta": "ATL",
+    "boston": "BOS",
+    "brooklyn": "BKN",
+    "charlotte": "CHA",
+    "chicago": "CHI",
+    "cleveland": "CLE",
+    "dallas": "DAL",
+    "denver": "DEN",
+    "detroit": "DET",
+    "golden state": "GSW",
+    "warriors": "GSW",
+    "houston": "HOU",
+    "indiana": "IND",
+    "clippers": "LAC",
+    "la clippers": "LAC",
+    "los angeles clippers": "LAC",
+    "lakers": "LAL",
+    "la lakers": "LAL",
+    "los angeles lakers": "LAL",
+    "memphis": "MEM",
+    "miami": "MIA",
+    "milwaukee": "MIL",
+    "minnesota": "MIN",
+    "new orleans": "NOP",
+    "pelicans": "NOP",
+    "knicks": "NYK",
+    "new york": "NYK",
+    "oklahoma city": "OKC",
+    "thunder": "OKC",
+    "orlando": "ORL",
+    "philadelphia": "PHI",
+    "76ers": "PHI",
+    "phoenix": "PHX",
+    "portland": "POR",
+    "trail blazers": "POR",
+    "blazers": "POR",
+    "sacramento": "SAC",
+    "san antonio": "SAS",
+    "toronto": "TOR",
+    "utah": "UTA",
+    "washington": "WAS",
+    "wizards": "WAS"
+  };
+
+  for (const team of teams) {
+    const normalizedName = normalizeTeamName(team.name);
+    const words = team.name.split(" ");
+    const city = normalizeTeamName(words.slice(0, -1).join(" "));
+    const nickname = normalizeTeamName(words.slice(-1).join(" "));
+    const aliases = [
+      team.id,
+      team.abbreviation,
+      team.espnAbbreviation,
+      team.name,
+      normalizedName,
+      city,
+      nickname
+    ];
+
+    if (team.id === "POR") aliases.push("portland trail blazers");
+    if (team.id === "PHI") aliases.push("philadelphia 76ers", "sixers");
+    if (team.id === "GSW") aliases.push("golden state warriors");
+    if (team.id === "NOP") aliases.push("new orleans pelicans");
+
+    for (const alias of aliases) {
+      const normalized = normalizeTeamName(alias);
+      if (normalized) lookup.set(normalized, team);
+    }
+  }
+
+  for (const [alias, teamId] of Object.entries(manualAliases)) {
+    const team = teams.find((item) => item.id === teamId);
+    if (team) lookup.set(normalizeTeamName(alias), team);
+  }
+
+  return lookup;
+}
+
+function findNbaTeam(name) {
+  const normalized = normalizeTeamName(name);
+  return NBA_TEAM_LOOKUP.get(normalized) || null;
+}
+
+function moneylineToProb(odds) {
+  if (typeof odds !== "number" || !Number.isFinite(odds)) return null;
+  return odds < 0 ? -odds / (-odds + 100) : 100 / (odds + 100);
+}
+
+function avg(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function getLocalDateParts(dateInput, timeZone) {
+  const date = new Date(dateInput);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    weekday: "short"
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((part) => [part.type, part.value])
+  );
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  return {
+    localDateTime: `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`,
+    localHour: Number(parts.hour),
+    dayOfWeek: weekdayMap[parts.weekday]
+  };
+}
+
+function localHourBucket(hour) {
+  if (!Number.isFinite(hour)) return "unknown";
+  if (hour < 16) return "matinee";
+  if (hour < 19) return "early_evening";
+  if (hour < 22) return "prime_time";
+  return "late_night";
+}
+
+function restBucket(daysRest) {
+  if (daysRest == null || !Number.isFinite(daysRest)) return "unknown";
+  if (daysRest <= 0) return "0_days";
+  if (daysRest === 1) return "1_day";
+  if (daysRest === 2) return "2_days";
+  return "3_plus_days";
+}
+
+function travelBucket(distanceMiles) {
+  if (distanceMiles == null || !Number.isFinite(distanceMiles)) return "unknown";
+  if (distanceMiles === 0) return "no_travel";
+  if (distanceMiles < 500) return "short_haul";
+  if (distanceMiles < 1000) return "medium_haul";
+  return "long_haul";
+}
+
+function diffDays(dateA, dateB) {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((dateA - dateB) / msPerDay);
+}
+
+function parseTimeZoneOffsetHours(timeZone, date) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset"
+  });
+  const zoneName =
+    formatter.formatToParts(date).find((part) => part.type === "timeZoneName")?.value || "GMT";
+  const match = zoneName.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/i);
+  if (!match) return 0;
+  const hours = Number(match[1]);
+  const minutes = match[2] ? Number(match[2]) / 60 : 0;
+  return hours >= 0 ? hours + minutes : hours - minutes;
+}
+
+function getTeamWin(row) {
+  if (!row?.game || row.game.home_win == null) return null;
+  return row.is_home ? Boolean(row.game.home_win) : !row.game.home_win;
+}
+
+function summarizeRows(rows) {
+  const wins = rows.reduce((count, row) => count + (getTeamWin(row) ? 1 : 0), 0);
+  const games = rows.length;
+  return {
+    games,
+    wins,
+    losses: games - wins,
+    winPct: games ? Number(((wins / games) * 100).toFixed(1)) : null
+  };
+}
+
+function pickSample(rows, predicate) {
+  return summarizeRows(rows.filter(predicate));
+}
+
+function formatRecord(label, stats) {
+  if (!stats.games) return `${label}: no sample`;
+  return `${label}: ${stats.wins}-${stats.losses} (${stats.winPct}%) in ${stats.games} games`;
+}
+
+function parseOddsGame(game) {
+  if (game && Array.isArray(game.teams) && game.teams.length === 2) {
+    const [teamA, teamB] = game.teams;
+    return {
+      homeTeamName: game.home_team || game.homeTeam || teamA.name,
+      awayTeamName: game.away_team || game.awayTeam || teamB.name,
+      commenceTime: game.commence_time || game.commenceTime || new Date().toISOString(),
+      teams: [
+        {
+          name: teamA.name,
+          avgMoneyline: Number.isFinite(teamA.avgMoneyline) ? teamA.avgMoneyline : null,
+          impliedWinPct:
+            Number.isFinite(teamA.impliedWinPct) ? teamA.impliedWinPct : null
+        },
+        {
+          name: teamB.name,
+          avgMoneyline: Number.isFinite(teamB.avgMoneyline) ? teamB.avgMoneyline : null,
+          impliedWinPct:
+            Number.isFinite(teamB.impliedWinPct) ? teamB.impliedWinPct : null
+        }
+      ]
+    };
+  }
+
+  const homeTeamName = game?.home_team || game?.homeTeam || null;
+  const awayTeamName = game?.away_team || game?.awayTeam || null;
+  const priceMap = new Map();
+
+  for (const book of game?.bookmakers || []) {
+    const market = (book.markets || []).find((entry) => entry.key === "h2h");
+    for (const outcome of market?.outcomes || []) {
+      if (typeof outcome.price !== "number") continue;
+      if (!priceMap.has(outcome.name)) priceMap.set(outcome.name, []);
+      priceMap.get(outcome.name).push(outcome.price);
+    }
+  }
+
+  const teams = [awayTeamName, homeTeamName]
+    .filter(Boolean)
+    .map((name) => {
+      const prices = priceMap.get(name) || [];
+      const averageMoneyline = avg(prices);
+      const impliedProb = moneylineToProb(averageMoneyline);
+      return {
+        name,
+        avgMoneyline:
+          typeof averageMoneyline === "number" ? Number(averageMoneyline.toFixed(0)) : null,
+        impliedWinPct:
+          typeof impliedProb === "number" ? Number((impliedProb * 100).toFixed(1)) : null
+      };
+    });
+
+  return {
+    homeTeamName,
+    awayTeamName,
+    commenceTime: game?.commence_time || game?.commenceTime || new Date().toISOString(),
+    teams
+  };
+}
+
+async function loadNbaWarehouse() {
+  const [{ data: games, error: gamesError }, { data: features, error: featuresError }, { data: distances, error: distancesError }] =
+    await Promise.all([
+      supabase.from("games").select("*"),
+      supabase.from("team_game_features").select("*"),
+      supabase.from("arena_distances").select("*")
+    ]);
+
+  if (gamesError) throw gamesError;
+  if (featuresError) throw featuresError;
+  if (distancesError) throw distancesError;
+
+  const gamesById = new Map((games || []).map((game) => [game.game_id, game]));
+  const featureRows = (features || [])
+    .map((row) => ({
+      ...row,
+      game: gamesById.get(row.game_id) || null
+    }))
+    .filter((row) => row.game);
+  const completedRows = featureRows.filter((row) => row.game.home_win != null);
+  const rowsByTeam = new Map();
+
+  for (const row of completedRows) {
+    const bucket = rowsByTeam.get(row.team_id) || [];
+    bucket.push(row);
+    rowsByTeam.set(row.team_id, bucket);
+  }
+
+  for (const rows of rowsByTeam.values()) {
+    rows.sort(
+      (left, right) => new Date(left.game.game_datetime_utc) - new Date(right.game.game_datetime_utc)
+    );
+  }
+
+  const distanceMap = new Map(
+    (distances || []).map((row) => [`${row.from_arena_id}:${row.to_arena_id}`, row])
+  );
+
+  const latestSeason = (games || [])
+    .map((game) => game.season)
+    .sort()
+    .slice(-1)[0] || null;
+
+  return { rowsByTeam, completedRows, distanceMap, latestSeason };
+}
+
+function buildUpcomingTeamSpot(team, opponentTeam, isHome, commenceTime, history, distanceMap) {
+  const currentArena = opponentTeam ? NBA_ARENAS_BY_TEAM_ID.get(isHome ? team.id : opponentTeam.id) : null;
+  const teamRows = (history.rowsByTeam.get(team.id) || []).filter(
+    (row) => new Date(row.game.game_datetime_utc) < new Date(commenceTime)
+  );
+  const previous = teamRows.length ? teamRows[teamRows.length - 1] : null;
+  const previousArenaId = previous ? previous.game.home_arena_id : null;
+  const currentArenaId = currentArena?.id || null;
+  const travelDistance =
+    previousArenaId && currentArenaId
+      ? distanceMap.get(`${previousArenaId}:${currentArenaId}`)?.distance_miles ?? null
+      : null;
+  const restDays =
+    previous ? Math.max(diffDays(new Date(commenceTime), new Date(previous.game.game_datetime_utc)) - 1, 0) : null;
+  const backToBack = previous ? diffDays(new Date(commenceTime), new Date(previous.game.game_datetime_utc)) === 1 : false;
+  const timezoneChangeHours =
+    previous && previousArenaId && currentArena
+      ? parseTimeZoneOffsetHours(currentArena.timezone, new Date(commenceTime)) -
+        parseTimeZoneOffsetHours(
+          nbaTeams.find((nbaTeam) => nbaTeam.arena.id === previousArenaId)?.arena.timezone || currentArena.timezone,
+          new Date(previous.game.game_datetime_utc)
+        )
+      : 0;
+  const local = currentArena
+    ? getLocalDateParts(commenceTime, currentArena.timezone)
+    : { localDateTime: null, localHour: null, dayOfWeek: null };
+
+  return {
+    teamId: team.id,
+    teamName: team.name,
+    isHome,
+    localDateTime: local.localDateTime,
+    localHour: local.localHour,
+    dayOfWeek: local.dayOfWeek,
+    hourBucket: localHourBucket(local.localHour),
+    restDays,
+    restBucket: restBucket(restDays),
+    backToBack,
+    travelDistanceFromPrevGame:
+      typeof travelDistance === "number" ? Number(travelDistance.toFixed(1)) : null,
+    travelBucket: travelBucket(travelDistance),
+    timezoneChangeHours: Number.isFinite(timezoneChangeHours)
+      ? Number(timezoneChangeHours.toFixed(1))
+      : 0
+  };
+}
+
+function buildHistoricalCategories(teamRows, opponentId, spot, history) {
+  const teamStats = {
+    overall: summarizeRows(teamRows),
+    homeAway: pickSample(teamRows, (row) => row.is_home === spot.isHome),
+    rest: pickSample(teamRows, (row) => restBucket(row.days_rest) === spot.restBucket),
+    backToBack: pickSample(teamRows, (row) => Boolean(row.back_to_back) === spot.backToBack),
+    travel: pickSample(
+      teamRows,
+      (row) => travelBucket(row.travel_distance_from_prev_game) === spot.travelBucket
+    ),
+    dayOfWeek: pickSample(teamRows, (row) => row.game.day_of_week === spot.dayOfWeek),
+    tipoffWindow: pickSample(
+      teamRows,
+      (row) => localHourBucket(row.game.local_hour) === spot.hourBucket
+    ),
+    headToHead: pickSample(teamRows, (row) => {
+      const opponentTeamId =
+        row.game.home_team_id === row.team_id ? row.game.away_team_id : row.game.home_team_id;
+      return opponentTeamId === opponentId;
+    }),
+    similarSpot: pickSample(
+      teamRows,
+      (row) =>
+        row.is_home === spot.isHome &&
+        restBucket(row.days_rest) === spot.restBucket &&
+        Boolean(row.back_to_back) === spot.backToBack &&
+        travelBucket(row.travel_distance_from_prev_game) === spot.travelBucket
+    )
+  };
+
+  const leagueRows = history.completedRows.filter(
+    (row) =>
+      row.is_home === spot.isHome &&
+      restBucket(row.days_rest) === spot.restBucket &&
+      Boolean(row.back_to_back) === spot.backToBack &&
+      travelBucket(row.travel_distance_from_prev_game) === spot.travelBucket
+  );
+
+  return {
+    team: teamStats,
+    leagueBaseline: summarizeRows(leagueRows)
+  };
+}
+
+function blendScore(stats) {
+  const weights = {
+    overall: 1,
+    homeAway: 1.5,
+    rest: 1.25,
+    backToBack: 1,
+    travel: 1,
+    dayOfWeek: 0.5,
+    tipoffWindow: 0.5,
+    headToHead: 0.75,
+    similarSpot: 2
+  };
+  let score = 0;
+  let totalWeight = 0;
+
+  for (const [key, weight] of Object.entries(weights)) {
+    const sample = stats[key];
+    if (!sample || !sample.games || sample.winPct == null) continue;
+    const confidence = Math.min(sample.games, 20) / 20;
+    score += sample.winPct * weight * confidence;
+    totalWeight += weight * confidence;
+  }
+
+  return totalWeight ? Number((score / totalWeight).toFixed(1)) : null;
+}
+
+function buildPromptBlock(matchups) {
+  const header = [
+    "You are making NBA moneyline picks using historical team performance by situation.",
+    "Use the structured context below more heavily than narrative intuition.",
+    "Prioritize larger samples over tiny samples and avoid overreacting to sparse head-to-head data.",
+    "Choose one side per game and explain the categories driving the pick."
+  ].join(" ");
+
+  const body = matchups
+    .map((matchup) => {
+      const lines = [
+        `Matchup: ${matchup.awayTeam.teamName} @ ${matchup.homeTeam.teamName}`,
+        `Scheduled tip: ${matchup.homeTeam.localDateTime} ${matchup.homeArena.timezone}`,
+        `Odds: ${matchup.awayTeam.teamName} ML ${matchup.awayOdds.avgMoneyline ?? "N/A"} (${matchup.awayOdds.impliedWinPct ?? "N/A"}% implied), ${matchup.homeTeam.teamName} ML ${matchup.homeOdds.avgMoneyline ?? "N/A"} (${matchup.homeOdds.impliedWinPct ?? "N/A"}% implied)`,
+        `Historical lean: ${matchup.historicalLean.team}${matchup.historicalLean.edgePct == null ? "" : ` by ${matchup.historicalLean.edgePct} pts`}`,
+        formatRecord(`${matchup.homeTeam.teamName} overall`, matchup.homeHistory.team.overall),
+        formatRecord(`${matchup.homeTeam.teamName} home/away split`, matchup.homeHistory.team.homeAway),
+        formatRecord(`${matchup.homeTeam.teamName} rest bucket (${matchup.homeTeam.restBucket})`, matchup.homeHistory.team.rest),
+        formatRecord(`${matchup.homeTeam.teamName} travel bucket (${matchup.homeTeam.travelBucket})`, matchup.homeHistory.team.travel),
+        formatRecord(`${matchup.homeTeam.teamName} back-to-back=${matchup.homeTeam.backToBack}`, matchup.homeHistory.team.backToBack),
+        formatRecord(`${matchup.homeTeam.teamName} head-to-head vs ${matchup.awayTeam.teamName}`, matchup.homeHistory.team.headToHead),
+        formatRecord(`${matchup.awayTeam.teamName} overall`, matchup.awayHistory.team.overall),
+        formatRecord(`${matchup.awayTeam.teamName} home/away split`, matchup.awayHistory.team.homeAway),
+        formatRecord(`${matchup.awayTeam.teamName} rest bucket (${matchup.awayTeam.restBucket})`, matchup.awayHistory.team.rest),
+        formatRecord(`${matchup.awayTeam.teamName} travel bucket (${matchup.awayTeam.travelBucket})`, matchup.awayHistory.team.travel),
+        formatRecord(`${matchup.awayTeam.teamName} back-to-back=${matchup.awayTeam.backToBack}`, matchup.awayHistory.team.backToBack),
+        formatRecord(`${matchup.awayTeam.teamName} head-to-head vs ${matchup.homeTeam.teamName}`, matchup.awayHistory.team.headToHead),
+        formatRecord("League baseline for this home-team spot", matchup.homeHistory.leagueBaseline),
+        formatRecord("League baseline for this away-team spot", matchup.awayHistory.leagueBaseline)
+      ];
+
+      return lines.join("\n");
+    })
+    .join("\n\n");
+
+  return `${header}\n\n${body}`;
 }
 
 function toDateKey(date) {
@@ -366,6 +819,119 @@ app.post("/api/settle", async (req, res) => {
     settledItems: settledItemCount,
     fetchedGames: completedGames.length
   });
+});
+
+app.post("/api/nba/pick-context", async (req, res) => {
+  if (INGEST_KEY) {
+    const key = req.header("x-ingest-key");
+    if (key !== INGEST_KEY) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  }
+
+  const inputGames = Array.isArray(req.body?.games) ? req.body.games : [];
+  if (!inputGames.length) {
+    return res.status(400).json({ error: "Provide a non-empty games array." });
+  }
+
+  try {
+    const history = await loadNbaWarehouse();
+    const matchups = [];
+    const unresolved = [];
+
+    for (const rawGame of inputGames) {
+      const parsed = parseOddsGame(rawGame);
+      const homeTeam = findNbaTeam(parsed.homeTeamName);
+      const awayTeam = findNbaTeam(parsed.awayTeamName);
+
+      if (!homeTeam || !awayTeam) {
+        unresolved.push({
+          homeTeamName: parsed.homeTeamName,
+          awayTeamName: parsed.awayTeamName
+        });
+        continue;
+      }
+
+      const homeSpot = buildUpcomingTeamSpot(
+        homeTeam,
+        awayTeam,
+        true,
+        parsed.commenceTime,
+        history,
+        history.distanceMap
+      );
+      const awaySpot = buildUpcomingTeamSpot(
+        awayTeam,
+        homeTeam,
+        false,
+        parsed.commenceTime,
+        history,
+        history.distanceMap
+      );
+      const homeRows = history.rowsByTeam.get(homeTeam.id) || [];
+      const awayRows = history.rowsByTeam.get(awayTeam.id) || [];
+      const homeHistory = buildHistoricalCategories(homeRows, awayTeam.id, homeSpot, history);
+      const awayHistory = buildHistoricalCategories(awayRows, homeTeam.id, awaySpot, history);
+      const homeScore = blendScore(homeHistory.team);
+      const awayScore = blendScore(awayHistory.team);
+      const homeOdds =
+        parsed.teams.find((team) => normalizeTeamName(team.name) === normalizeTeamName(parsed.homeTeamName)) ||
+        parsed.teams[1] ||
+        {};
+      const awayOdds =
+        parsed.teams.find((team) => normalizeTeamName(team.name) === normalizeTeamName(parsed.awayTeamName)) ||
+        parsed.teams[0] ||
+        {};
+
+      matchups.push({
+        matchup: `${awayTeam.name} @ ${homeTeam.name}`,
+        commenceTimeUtc: parsed.commenceTime,
+        season: history.latestSeason,
+        homeArena: NBA_ARENAS_BY_TEAM_ID.get(homeTeam.id),
+        homeTeam: homeSpot,
+        awayTeam: awaySpot,
+        homeOdds,
+        awayOdds,
+        homeHistory,
+        awayHistory,
+        historicalLean: {
+          team:
+            homeScore == null || awayScore == null
+              ? "No lean"
+              : homeScore >= awayScore
+                ? homeTeam.name
+                : awayTeam.name,
+          edgePct:
+            homeScore == null || awayScore == null
+              ? null
+              : Number(Math.abs(homeScore - awayScore).toFixed(1)),
+          homeScore,
+          awayScore
+        }
+      });
+    }
+
+    if (!matchups.length) {
+      return res.status(400).json({
+        error: "None of the provided games could be mapped to NBA teams.",
+        unresolvedTeams: unresolved
+      });
+    }
+
+    res.json({
+      ok: true,
+      season: history.latestSeason,
+      generatedAt: new Date().toISOString(),
+      unresolvedTeams: unresolved,
+      games: matchups,
+      prompt: buildPromptBlock(matchups)
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to build NBA pick context.",
+      details: error?.message || "Unknown error"
+    });
+  }
 });
 
 app.get("*", (_req, res) => {
