@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 .env
 data/
+model/__pycache__/
+model/generated/
+*.pyc

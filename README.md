@@ -12,6 +12,7 @@ Sports prediction pipeline using n8n + OpenAI + odds/score feeds, with a live da
 - Express API + dashboard UI
 - Supabase schema and persistence
 - NBA warehousing scripts for teams, arenas, games, and travel features
+- Trained-model pipeline for NBA win probabilities
 - Auto-settlement endpoint (`/api/settle`) for win/loss tagging
 
 ## Project Structure
@@ -28,11 +29,15 @@ Sports prediction pipeline using n8n + OpenAI + odds/score feeds, with a live da
 ├── scripts/
 │   ├── buildArenaDistances.js
 │   ├── buildNbaFeatures.js
+│   ├── exportNbaTrainingData.js
 │   ├── ingestNbaGames.js
 │   ├── seedNbaMetadata.js
 │   └── lib/
 │       ├── env.js
+│       ├── nbaModel.js
 │       └── nba.js
+├── model/
+│   └── train_nba_model.py
 ├── supabase/
 │   └── schema.sql
 ├── workflows/
@@ -127,6 +132,7 @@ Response includes:
 
 - `games`: structured matchup stats for each team
 - `prompt`: a plain-text block ready to feed into the OpenAI node in n8n
+- `modelAvailable`: whether a trained model artifact was loaded
 - `unresolvedTeams`: any team names that could not be mapped
 
 ## n8n Integration
@@ -170,6 +176,23 @@ Response includes:
 ```
 
 Then use `{{$json.prompt}}` as the main evidence block in your OpenAI node instead of sending odds alone.
+
+## NBA Model Training
+
+After loading the warehouse tables, you can train a baseline logistic-regression model:
+
+```bash
+npm run export:nba-training -- 2024-25
+npm run train:nba-model
+```
+
+This creates:
+
+- `model/generated/nba_training_2024-25.csv`: supervised training rows
+- `model/nba-logistic-model.json`: portable model artifact with scaler stats, coefficients, and metrics
+
+The live `POST /api/nba/pick-context` endpoint will automatically include model probabilities if `model/nba-logistic-model.json` exists on the deployed server.
+Commit and deploy `model/nba-logistic-model.json` if you want Render to serve trained-model probabilities.
 
 ## Deployment
 

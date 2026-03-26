@@ -1,7 +1,9 @@
 const express = require("express");
+const fs = require("fs");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 const nbaTeams = require("./data/nba-teams.json");
+const { buildModelFeatureObject, scoreFeatureObject } = require("./scripts/lib/nbaModel");
 
 require("dotenv").config();
 
@@ -20,6 +22,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const NBA_TEAM_LOOKUP = buildNbaTeamLookup(nbaTeams);
 const NBA_ARENAS_BY_TEAM_ID = new Map(nbaTeams.map((team) => [team.id, team.arena]));
+const NBA_MODEL_ARTIFACT_PATH = path.join(__dirname, "model", "nba-logistic-model.json");
 const ESPN_LEAGUES = [
   { sport: "basketball", league: "nba" },
   { sport: "baseball", league: "mlb" },
@@ -210,6 +213,15 @@ function diffDays(dateA, dateB) {
   return Math.round((dateA - dateB) / msPerDay);
 }
 
+function countRecentGames(rows, currentDate, days) {
+  const windowStart = new Date(currentDate);
+  windowStart.setUTCDate(windowStart.getUTCDate() - days);
+  return rows.filter((row) => {
+    const rowDate = new Date(row.game.game_datetime_utc);
+    return rowDate > windowStart && rowDate < currentDate;
+  }).length;
+}
+
 function parseTimeZoneOffsetHours(timeZone, date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -309,6 +321,18 @@ function parseOddsGame(game) {
   };
 }
 
+function loadNbaModelArtifact() {
+  if (!fs.existsSync(NBA_MODEL_ARTIFACT_PATH)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(NBA_MODEL_ARTIFACT_PATH, "utf8"));
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function loadNbaWarehouse() {
   const [{ data: games, error: gamesError }, { data: features, error: featuresError }, { data: distances, error: distancesError }] =
     await Promise.all([
@@ -357,8 +381,9 @@ async function loadNbaWarehouse() {
 
 function buildUpcomingTeamSpot(team, opponentTeam, isHome, commenceTime, history, distanceMap) {
   const currentArena = opponentTeam ? NBA_ARENAS_BY_TEAM_ID.get(isHome ? team.id : opponentTeam.id) : null;
+  const currentDate = new Date(commenceTime);
   const teamRows = (history.rowsByTeam.get(team.id) || []).filter(
-    (row) => new Date(row.game.game_datetime_utc) < new Date(commenceTime)
+    (row) => new Date(row.game.game_datetime_utc) < currentDate
   );
   const previous = teamRows.length ? teamRows[teamRows.length - 1] : null;
   const previousArenaId = previous ? previous.game.home_arena_id : null;
@@ -368,11 +393,11 @@ function buildUpcomingTeamSpot(team, opponentTeam, isHome, commenceTime, history
       ? distanceMap.get(`${previousArenaId}:${currentArenaId}`)?.distance_miles ?? null
       : null;
   const restDays =
-    previous ? Math.max(diffDays(new Date(commenceTime), new Date(previous.game.game_datetime_utc)) - 1, 0) : null;
-  const backToBack = previous ? diffDays(new Date(commenceTime), new Date(previous.game.game_datetime_utc)) === 1 : false;
+    previous ? Math.max(diffDays(currentDate, new Date(previous.game.game_datetime_utc)) - 1, 0) : null;
+  const backToBack = previous ? diffDays(currentDate, new Date(previous.game.game_datetime_utc)) === 1 : false;
   const timezoneChangeHours =
     previous && previousArenaId && currentArena
-      ? parseTimeZoneOffsetHours(currentArena.timezone, new Date(commenceTime)) -
+      ? parseTimeZoneOffsetHours(currentArena.timezone, currentDate) -
         parseTimeZoneOffsetHours(
           nbaTeams.find((nbaTeam) => nbaTeam.arena.id === previousArenaId)?.arena.timezone || currentArena.timezone,
           new Date(previous.game.game_datetime_utc)
@@ -393,12 +418,28 @@ function buildUpcomingTeamSpot(team, opponentTeam, isHome, commenceTime, history
     restDays,
     restBucket: restBucket(restDays),
     backToBack,
+    gamesLast3Days: countRecentGames(teamRows, currentDate, 3),
+    gamesLast5Days: countRecentGames(teamRows, currentDate, 5),
+    gamesLast7Days: countRecentGames(teamRows, currentDate, 7),
     travelDistanceFromPrevGame:
       typeof travelDistance === "number" ? Number(travelDistance.toFixed(1)) : null,
+    travelDistanceLast3Games: (() => {
+      const recentGames = teamRows.slice(-3);
+      let miles = typeof travelDistance === "number" ? travelDistance : 0;
+      for (let index = 1; index < recentGames.length; index += 1) {
+        const priorArenaIdFromHistory = recentGames[index - 1].game.home_arena_id;
+        const currentArenaIdFromHistory = recentGames[index].game.home_arena_id;
+        miles +=
+          distanceMap.get(`${priorArenaIdFromHistory}:${currentArenaIdFromHistory}`)?.distance_miles || 0;
+      }
+      return Number(miles.toFixed(1));
+    })(),
     travelBucket: travelBucket(travelDistance),
     timezoneChangeHours: Number.isFinite(timezoneChangeHours)
       ? Number(timezoneChangeHours.toFixed(1))
-      : 0
+      : 0,
+    eastToWestTravel: timezoneChangeHours < 0,
+    westToEastTravel: timezoneChangeHours > 0
   };
 }
 
@@ -474,8 +515,8 @@ function blendScore(stats) {
 
 function buildPromptBlock(matchups) {
   const header = [
-    "You are making NBA moneyline picks using historical team performance by situation.",
-    "Use the structured context below more heavily than narrative intuition.",
+    "You are making NBA moneyline picks using a trained baseline model plus historical team performance by situation.",
+    "Prioritize the model probabilities first, then use the historical category context as supporting evidence.",
     "Prioritize larger samples over tiny samples and avoid overreacting to sparse head-to-head data.",
     "Choose one side per game and explain the categories driving the pick."
   ].join(" ");
@@ -486,6 +527,9 @@ function buildPromptBlock(matchups) {
         `Matchup: ${matchup.awayTeam.teamName} @ ${matchup.homeTeam.teamName}`,
         `Scheduled tip: ${matchup.homeTeam.localDateTime} ${matchup.homeArena.timezone}`,
         `Odds: ${matchup.awayTeam.teamName} ML ${matchup.awayOdds.avgMoneyline ?? "N/A"} (${matchup.awayOdds.impliedWinPct ?? "N/A"}% implied), ${matchup.homeTeam.teamName} ML ${matchup.homeOdds.avgMoneyline ?? "N/A"} (${matchup.homeOdds.impliedWinPct ?? "N/A"}% implied)`,
+        matchup.modelPrediction
+          ? `Model probability: ${matchup.homeTeam.teamName} ${matchup.modelPrediction.homeWinPct}% vs ${matchup.awayTeam.teamName} ${matchup.modelPrediction.awayWinPct}%`
+          : "Model probability: no trained model artifact loaded",
         `Historical lean: ${matchup.historicalLean.team}${matchup.historicalLean.edgePct == null ? "" : ` by ${matchup.historicalLean.edgePct} pts`}`,
         formatRecord(`${matchup.homeTeam.teamName} overall`, matchup.homeHistory.team.overall),
         formatRecord(`${matchup.homeTeam.teamName} home/away split`, matchup.homeHistory.team.homeAway),
@@ -836,6 +880,7 @@ app.post("/api/nba/pick-context", async (req, res) => {
 
   try {
     const history = await loadNbaWarehouse();
+    const modelArtifact = loadNbaModelArtifact();
     const matchups = [];
     const unresolved = [];
 
@@ -872,6 +917,35 @@ app.post("/api/nba/pick-context", async (req, res) => {
       const awayRows = history.rowsByTeam.get(awayTeam.id) || [];
       const homeHistory = buildHistoricalCategories(homeRows, awayTeam.id, homeSpot, history);
       const awayHistory = buildHistoricalCategories(awayRows, homeTeam.id, awaySpot, history);
+      const filteredHomeRows = homeRows.filter(
+        (row) => new Date(row.game.game_datetime_utc) < new Date(parsed.commenceTime)
+      );
+      const filteredAwayRows = awayRows.filter(
+        (row) => new Date(row.game.game_datetime_utc) < new Date(parsed.commenceTime)
+      );
+      const homeFeatureObject = buildModelFeatureObject({
+        teamSpot: homeSpot,
+        opponentSpot: awaySpot,
+        teamRows: filteredHomeRows,
+        opponentRows: filteredAwayRows,
+        isPlayoff: false
+      });
+      const awayFeatureObject = buildModelFeatureObject({
+        teamSpot: awaySpot,
+        opponentSpot: homeSpot,
+        teamRows: filteredAwayRows,
+        opponentRows: filteredHomeRows,
+        isPlayoff: false
+      });
+      const rawHomeProb = modelArtifact ? scoreFeatureObject(homeFeatureObject, modelArtifact) : null;
+      const rawAwayProb = modelArtifact ? scoreFeatureObject(awayFeatureObject, modelArtifact) : null;
+      const modelPrediction =
+        rawHomeProb != null && rawAwayProb != null && rawHomeProb + rawAwayProb > 0
+          ? {
+              homeWinPct: Number(((rawHomeProb / (rawHomeProb + rawAwayProb)) * 100).toFixed(1)),
+              awayWinPct: Number(((rawAwayProb / (rawHomeProb + rawAwayProb)) * 100).toFixed(1))
+            }
+          : null;
       const homeScore = blendScore(homeHistory.team);
       const awayScore = blendScore(awayHistory.team);
       const homeOdds =
@@ -892,6 +966,7 @@ app.post("/api/nba/pick-context", async (req, res) => {
         awayTeam: awaySpot,
         homeOdds,
         awayOdds,
+        modelPrediction,
         homeHistory,
         awayHistory,
         historicalLean: {
@@ -922,6 +997,7 @@ app.post("/api/nba/pick-context", async (req, res) => {
       ok: true,
       season: history.latestSeason,
       generatedAt: new Date().toISOString(),
+      modelAvailable: Boolean(modelArtifact),
       unresolvedTeams: unresolved,
       games: matchups,
       prompt: buildPromptBlock(matchups)
