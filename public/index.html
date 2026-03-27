@@ -7,13 +7,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,700&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header class="global-nav">
+    <header class="global-nav" id="topbar">
       <div class="nav-inner">
         <a class="nav-logo" href="#overview" aria-label="SurgeBet dashboard">
           <img
@@ -32,7 +32,7 @@
         </nav>
 
         <div class="nav-actions">
-          <button id="refreshBtn" class="nav-refresh" type="button">Refresh Picks</button>
+          <button id="refreshBtn" class="nav-refresh ripple-btn" type="button">Refresh Picks</button>
         </div>
 
         <button id="navBurger" class="nav-burger" type="button" aria-label="Open navigation">
@@ -46,7 +46,7 @@
         <button class="tab-btn is-active" data-page="overview" type="button">Dashboard</button>
         <button class="tab-btn" data-page="predictions" type="button">Predictions</button>
         <button class="tab-btn" data-page="history" type="button">History</button>
-        <button id="refreshBtnMobile" class="nav-refresh nav-refresh-mobile" type="button">
+        <button id="refreshBtnMobile" class="nav-refresh nav-refresh-mobile ripple-btn" type="button">
           Refresh Picks
         </button>
       </div>
@@ -54,23 +54,26 @@
 
     <main class="page-main">
       <section class="hero-section panel-block" data-pages="overview,predictions,history">
+        <div class="hero-orb hero-orb-a" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-b" aria-hidden="true"></div>
+        <div class="hero-orb hero-orb-c" aria-hidden="true"></div>
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-grid" aria-hidden="true"></div>
 
         <div class="hero-body">
-          <p class="hero-eyebrow">
+          <p class="hero-eyebrow fade-up" style="--fd: 0ms">
             <span class="eyebrow-dot"></span>
             Model-Driven Sports Intelligence
           </p>
-          <h1 class="hero-headline">
+          <h1 class="hero-headline fade-up" style="--fd: 90ms">
             Ask. Analyze.<br />
             <em>Picks in Seconds.</em>
           </h1>
-          <p class="hero-sub">
+          <p class="hero-sub fade-up" style="--fd: 180ms">
             SurgeBet combines market context, trained matchup models, and historical performance
             to surface picks with clear evidence and confidence.
           </p>
-          <div class="hero-cta-row">
+          <div class="hero-cta-row fade-up" style="--fd: 260ms">
             <div class="hero-kpi">
               <span class="hero-kpi-label">Live Feed</span>
               <span class="hero-kpi-value">Model + AI</span>
@@ -80,7 +83,7 @@
               <span class="hero-kpi-value">Signal Over Noise</span>
             </div>
           </div>
-          <p id="updatedAt" class="status-pill">Waiting for first prediction run...</p>
+          <p id="updatedAt" class="status-pill fade-up" style="--fd: 340ms">Waiting for first prediction run...</p>
         </div>
 
         <div class="league-strip">
@@ -122,7 +125,7 @@
               <h2 class="section-title">Latest Predictions</h2>
               <p class="section-sub">The most recent model-led picks, shown with confidence and supporting context.</p>
             </div>
-            <button id="viewLatestBtn" class="btn-back" type="button" hidden>Back to Latest</button>
+            <button id="viewLatestBtn" class="btn-back ripple-btn" type="button" hidden>Back to Latest</button>
           </header>
           <div id="latestContainer" class="empty">No predictions yet.</div>
         </div>

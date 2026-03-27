@@ -19,11 +19,11 @@
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
   --radius: 16px;
   --radius-lg: 22px;
-  --ff: "Barlow", "Segoe UI", sans-serif;
-  --ff-display: "Barlow Condensed", "Barlow", sans-serif;
-  --ff-mono: "JetBrains Mono", "SFMono-Regular", monospace;
+  --ff: "DM Sans", "Segoe UI", sans-serif;
+  --ff-display: "Syne", "DM Sans", sans-serif;
+  --ff-mono: "DM Mono", "SFMono-Regular", monospace;
   --nav-h: 58px;
-  --t: 160ms ease;
+  --t: 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 *,
@@ -80,6 +80,13 @@ button {
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
+  transition: min-height 280ms var(--t), background 280ms var(--t), box-shadow 280ms var(--t);
+}
+
+.global-nav.is-scrolled {
+  min-height: 50px;
+  background: rgba(8, 9, 11, 0.94);
+  box-shadow: 0 1px 32px rgba(0, 0, 0, 0.38);
 }
 
 .nav-inner {
@@ -103,6 +110,11 @@ button {
   height: 46px;
   width: auto;
   object-fit: contain;
+  transition: transform 280ms var(--t), opacity 280ms var(--t);
+}
+
+.global-nav.is-scrolled .nav-logo-img {
+  transform: scale(0.92);
 }
 
 .nav-logo-fallback {
@@ -163,9 +175,30 @@ button {
 }
 
 .nav-refresh:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   background: #d7ff4a;
   box-shadow: 0 10px 30px rgba(200, 241, 53, 0.25);
+}
+
+.ripple-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(0);
+  animation: ripple-expand 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple-expand {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
 }
 
 .nav-burger {
@@ -230,6 +263,52 @@ button {
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(13, 15, 21, 0.95), rgba(8, 9, 11, 0.98));
   text-align: center;
+}
+
+.hero-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.hero-orb-a {
+  top: -180px;
+  left: -80px;
+  width: 520px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(200, 241, 53, 0.12), transparent 68%);
+  animation: orb-drift-a 14s ease-in-out infinite alternate;
+}
+
+.hero-orb-b {
+  top: -120px;
+  right: -60px;
+  width: 420px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(93, 129, 255, 0.1), transparent 72%);
+  animation: orb-drift-b 18s ease-in-out infinite alternate;
+}
+
+.hero-orb-c {
+  bottom: -80px;
+  left: 36%;
+  width: 360px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06), transparent 70%);
+  animation: orb-drift-c 20s ease-in-out infinite alternate;
+}
+
+@keyframes orb-drift-a {
+  to { transform: translate(40px, 28px); }
+}
+
+@keyframes orb-drift-b {
+  to { transform: translate(-34px, 32px); }
+}
+
+@keyframes orb-drift-c {
+  to { transform: translate(-18px, -14px); }
 }
 
 .hero-glow {
@@ -302,14 +381,13 @@ button {
   margin: 0 0 18px;
   font-family: var(--ff-display);
   font-size: clamp(54px, 7vw, 96px);
-  font-weight: 700;
-  line-height: 0.94;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
 }
 
 .hero-headline em {
-  font-style: italic;
+  font-style: normal;
   color: var(--accent);
 }
 
@@ -333,8 +411,15 @@ button {
   padding: 14px 18px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
   text-align: left;
+  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+}
+
+.hero-kpi:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-hi);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
 }
 
 .hero-kpi-label {
@@ -405,6 +490,7 @@ button {
   transform: translateY(-2px);
   border-color: var(--line-hi);
   background: linear-gradient(180deg, var(--bg-4), var(--bg-5));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
 .league-tile img {
@@ -616,6 +702,15 @@ button {
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--bg-3), var(--bg-4));
   box-shadow: var(--shadow);
+  position: relative;
+}
+
+.latest-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200, 241, 53, 0.18), transparent);
 }
 
 .latest-meta {
@@ -624,7 +719,7 @@ button {
   gap: 8px 20px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(90deg, rgba(200, 241, 53, 0.05), transparent);
+  background: linear-gradient(90deg, rgba(200, 241, 53, 0.06), rgba(93, 129, 255, 0.03) 60%, transparent);
   color: var(--text-2);
   font-size: 13px;
 }
@@ -663,6 +758,26 @@ button {
   border-radius: 14px;
   background: linear-gradient(180deg, var(--bg-4), var(--bg-5));
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+}
+
+.pick-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-hi);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.22);
+}
+
+.pick-card-grid-model {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.pick-card-model {
+  min-height: 100%;
+}
+
+.pick-card-details {
+  display: grid;
+  gap: 8px;
 }
 
 .pick-card-top {
@@ -725,6 +840,7 @@ button {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-4);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
 }
 
 .section-wide {
@@ -759,6 +875,13 @@ button {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--bg-5);
+  transition: transform var(--t), border-color var(--t), background var(--t);
+}
+
+.pick-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-hi);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), var(--bg-5));
 }
 
 .pick-main-row {
@@ -793,6 +916,7 @@ button {
   font-family: var(--ff-mono);
   font-size: 11px;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .reason {
@@ -846,6 +970,20 @@ button {
   transform: translateY(-2px);
   border-color: var(--line-hi);
   background: linear-gradient(180deg, var(--bg-4), var(--bg-5));
+}
+
+.fade-up {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: fade-up 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--fd, 0ms);
+}
+
+@keyframes fade-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .history-item.is-active {

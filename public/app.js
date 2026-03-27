@@ -11,6 +11,7 @@ const pageBlocks = Array.from(document.querySelectorAll(".panel-block"));
 const navBurger = document.getElementById("navBurger");
 const navDrawer = document.getElementById("navDrawer");
 const refreshBtnMobile = document.getElementById("refreshBtnMobile");
+const topbar = document.getElementById("topbar");
 const allowedPages = new Set(["overview", "predictions", "history"]);
 const revealTargets = Array.from(
   document.querySelectorAll(
@@ -114,6 +115,64 @@ function normalizeSectionHeader(text) {
     .trim();
 }
 
+function parseModelPickList(rawMessage) {
+  if (!rawMessage || typeof rawMessage !== "string") return null;
+
+  const lines = rawMessage.split("\n");
+  const picks = [];
+  let current = null;
+
+  function commitCurrent() {
+    if (!current || !current.matchup) return;
+    picks.push(current);
+  }
+
+  for (const rawLine of lines) {
+    const trimmed = stripMarkdown(rawLine.trim());
+    if (!trimmed) continue;
+
+    const gameMatch = trimmed.match(/^\d+[.)]\s*Game:\s*(.+)$/i);
+    if (gameMatch) {
+      commitCurrent();
+      current = {
+        matchup: gameMatch[1].trim(),
+        pick: "",
+        confidence: "",
+        details: []
+      };
+      continue;
+    }
+
+    if (!current) continue;
+
+    const pickMatch = trimmed.match(/^Pick:\s*(.+)$/i);
+    if (pickMatch) {
+      current.pick = pickMatch[1].trim();
+      continue;
+    }
+
+    const confidenceMatch = trimmed.match(/^(Confidence|Model Probability):\s*(.+)$/i);
+    if (confidenceMatch) {
+      current.confidence = confidenceMatch[2].trim();
+      continue;
+    }
+
+    const detailMatch = trimmed.match(/^([^:]+):\s*(.+)$/);
+    if (detailMatch) {
+      current.details.push({
+        label: detailMatch[1].trim(),
+        value: detailMatch[2].trim()
+      });
+      continue;
+    }
+
+    current.details.push({ label: "", value: trimmed });
+  }
+
+  commitCurrent();
+  return picks.length ? picks : null;
+}
+
 function parseSections(rawMessage) {
   if (!rawMessage || typeof rawMessage !== "string") return null;
 
@@ -167,6 +226,36 @@ function parseSections(rawMessage) {
 }
 
 function renderSectionCards(rawMessage) {
+  const modelPickList = parseModelPickList(rawMessage);
+  if (modelPickList) {
+    return `
+      <div class="pick-card-grid pick-card-grid-model">
+        ${modelPickList
+          .map(
+            (pick) => `
+            <article class="pick-card pick-card-model">
+              <div class="pick-card-top">
+                <p class="pick-card-matchup">${escapeHtml(pick.matchup)}</p>
+                ${pick.confidence ? `<span class="pick-card-chip">${escapeHtml(pick.confidence)}</span>` : ""}
+              </div>
+              ${pick.pick ? `<p class="pick-card-pick">Pick: <span>${escapeHtml(pick.pick)}</span></p>` : ""}
+              <div class="pick-card-details">
+                ${pick.details
+                  .map((detail) =>
+                    detail.label
+                      ? `<p class="pick-card-reason"><strong>${escapeHtml(detail.label)}:</strong> ${escapeHtml(detail.value)}</p>`
+                      : `<p class="pick-card-reason">${escapeHtml(detail.value)}</p>`
+                  )
+                  .join("")}
+              </div>
+            </article>
+          `
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
   const sections = parseSections(rawMessage);
   if (!sections) {
     return `<pre class="raw">${escapeHtml(rawMessage)}</pre>`;
@@ -374,6 +463,32 @@ if (navBurger && navDrawer) {
     navBurger.classList.toggle("is-open");
   });
 }
+
+if (topbar) {
+  window.addEventListener(
+    "scroll",
+    () => {
+      topbar.classList.toggle("is-scrolled", window.scrollY > 20);
+    },
+    { passive: true }
+  );
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest(".ripple-btn");
+  if (!button) return;
+
+  const rect = button.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 1.35;
+  const ripple = document.createElement("span");
+  ripple.className = "ripple";
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
+  ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
+  ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
+  button.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 650);
+});
 
 setPage(location.hash.replace("#", ""), false);
 window.addEventListener("hashchange", () => setPage(location.hash.replace("#", ""), false));
