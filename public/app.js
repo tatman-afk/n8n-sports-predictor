@@ -5,17 +5,16 @@ const refreshBtn = document.getElementById("refreshBtn");
 const statLeague = document.getElementById("statLeague");
 const statRuns = document.getElementById("statRuns");
 const statLatestTime = document.getElementById("statLatestTime");
-const sectionStats = document.getElementById("sectionStats");
 const viewLatestBtn = document.getElementById("viewLatestBtn");
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const pageBlocks = Array.from(document.querySelectorAll(".panel-block"));
 const navBurger = document.getElementById("navBurger");
 const navDrawer = document.getElementById("navDrawer");
 const refreshBtnMobile = document.getElementById("refreshBtnMobile");
-const allowedPages = new Set(["overview", "predictions", "performance", "history"]);
+const allowedPages = new Set(["overview", "predictions", "history"]);
 const revealTargets = Array.from(
   document.querySelectorAll(
-    ".hero-body, .league-strip, .band-inner, .section-head, .perf-grid, .site-footer .footer-inner"
+    ".hero-body, .league-strip, .band-inner, .section-head, .site-footer .footer-inner"
   )
 );
 let latestPrediction = null;
@@ -38,7 +37,7 @@ function setPage(page, updateHash = true) {
     block.hidden = !pages.includes(targetPage);
   }
 
-  document.body.classList.remove("page-overview", "page-predictions", "page-performance", "page-history");
+  document.body.classList.remove("page-overview", "page-predictions", "page-history");
   document.body.classList.add(`page-${targetPage}`);
 
   if (updateHash) {
@@ -167,102 +166,6 @@ function parseSections(rawMessage) {
   return hasAny ? sections : null;
 }
 
-function parseSectionsWithOutcomes(rawMessage) {
-  if (!rawMessage || typeof rawMessage !== "string") return null;
-
-  const sectionOrder = [
-    "Safe Bets",
-    "Best Value Bets",
-    "Long Shots",
-    "2-Leg Parlays",
-    "3-Leg Parlays"
-  ];
-
-  const sections = new Map(sectionOrder.map((name) => [name, []]));
-  let currentSection = null;
-  const lines = rawMessage.split("\n");
-
-  function getOutcome(text) {
-    if (/result:\s*win|status:\s*win|\bwon\b|✅|\[\s*W\s*\]/i.test(text)) return "win";
-    if (/result:\s*loss|status:\s*loss|\blost\b|❌|\[\s*L\s*\]/i.test(text)) return "loss";
-    return null;
-  }
-
-  for (const rawLine of lines) {
-    const trimmedRaw = rawLine.trim();
-    const line = stripMarkdown(trimmedRaw);
-    if (!line) continue;
-
-    const header = normalizeSectionHeader(trimmedRaw).match(
-      /^(Safe Bets|Best Value Bets|Long Shots|2-Leg Parlays|3-Leg Parlays)\b/i
-    );
-
-    if (header) {
-      const normalized = sectionOrder.find(
-        (s) => s.toLowerCase() === header[1].toLowerCase()
-      );
-      currentSection = normalized || null;
-      continue;
-    }
-
-    if (!currentSection) continue;
-
-    const isBulletContinuation = /^[-*]\s+/.test(trimmedRaw);
-    const cleaned = stripMarkdown(line.replace(/^\d+[.)]\s*/, "").replace(/^[-*]\s*/, ""));
-    const items = sections.get(currentSection);
-
-    if (isBulletContinuation && items.length > 0) {
-      const previous = items[items.length - 1];
-      previous.text = `${previous.text} | Reason: ${cleaned}`;
-      previous.outcome = previous.outcome || getOutcome(cleaned);
-      continue;
-    }
-
-    items.push({ text: cleaned, outcome: getOutcome(cleaned) });
-  }
-
-  return sections;
-}
-
-function renderSectionStats(history) {
-  const labels = [
-    "Safe Bets",
-    "Best Value Bets",
-    "Long Shots",
-    "2-Leg Parlays",
-    "3-Leg Parlays"
-  ];
-
-  const totals = new Map(labels.map((label) => [label, { wins: 0, losses: 0 }]));
-
-  for (const entry of history || []) {
-    const parsed = parseSectionsWithOutcomes(entry.rawMessage || "");
-    if (!parsed) continue;
-
-    for (const label of labels) {
-      for (const item of parsed.get(label) || []) {
-        if (item.outcome === "win") totals.get(label).wins += 1;
-        if (item.outcome === "loss") totals.get(label).losses += 1;
-      }
-    }
-  }
-
-  const cards = labels.map((label) => {
-    const data = totals.get(label);
-    const settled = data.wins + data.losses;
-    const winRate = settled > 0 ? `${((data.wins / settled) * 100).toFixed(1)}%` : "-";
-    return `
-      <article class="perf-card">
-        <p class="perf-label">${escapeHtml(label)}</p>
-        <p class="perf-rate">${winRate}</p>
-        <p class="perf-record">${data.wins}W - ${data.losses}L</p>
-      </article>
-    `;
-  });
-
-  sectionStats.innerHTML = cards.join("");
-}
-
 function renderSectionCards(rawMessage) {
   const sections = parseSections(rawMessage);
   if (!sections) {
@@ -310,20 +213,29 @@ function renderSectionCards(rawMessage) {
     `;
   }
 
-  const cards = [];
+  const allItems = [];
   for (const [title, items] of sections.entries()) {
     if (items.length === 0) continue;
-    const wideClass = title === "Risk Notes" ? " section-wide" : "";
-    const list = items.map((item) => renderItemRow(item)).join("");
-    cards.push(`
-      <article class="section-card${wideClass}">
-        <h3>${escapeHtml(title)}</h3>
-        <ul>${list}</ul>
-      </article>
-    `);
+    for (const item of items) {
+      allItems.push({
+        title,
+        item
+      });
+    }
   }
 
-  return `<div class="sections-grid">${cards.join("")}</div>`;
+  if (allItems.length === 0) {
+    return `<pre class="raw">${escapeHtml(rawMessage)}</pre>`;
+  }
+
+  return `
+    <article class="section-card section-wide">
+      <h3>Model Picks</h3>
+      <ul>
+        ${allItems.map(({ item }) => renderItemRow(item)).join("")}
+      </ul>
+    </article>
+  `;
 }
 
 function renderLatest(latest) {
@@ -415,10 +327,8 @@ async function load() {
     renderLatest(selectedPrediction);
     renderHistory(predictionHistory, selectedPredictionId);
     viewLatestBtn.hidden = !latestPrediction || selectedPredictionId === latestPrediction.id;
-    renderSectionStats(data.history);
     latestContainer.classList.add("is-visible");
     historyContainer.classList.add("is-visible");
-    revealElement(sectionStats);
     updatedAt.textContent = data.updatedAt
       ? `Last updated ${fmtDate(data.updatedAt)}`
       : "Waiting for first prediction run...";
@@ -427,7 +337,6 @@ async function load() {
     statLatestTime.textContent = data.latest?.createdAt ? fmtDate(data.latest.createdAt) : "-";
   } catch (err) {
     latestContainer.innerHTML = `<div class="empty">Failed to load: ${err.message}</div>`;
-    sectionStats.innerHTML = "";
     predictionHistory = [];
     latestPrediction = null;
     selectedPredictionId = null;

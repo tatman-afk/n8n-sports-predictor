@@ -28,7 +28,6 @@
         <nav class="nav-tabs" aria-label="Sections">
           <button class="tab-btn is-active" data-page="overview" type="button">Dashboard</button>
           <button class="tab-btn" data-page="predictions" type="button">Predictions</button>
-          <button class="tab-btn" data-page="performance" type="button">Performance</button>
           <button class="tab-btn" data-page="history" type="button">History</button>
         </nav>
 
@@ -46,7 +45,6 @@
       <div id="navDrawer" class="nav-drawer">
         <button class="tab-btn is-active" data-page="overview" type="button">Dashboard</button>
         <button class="tab-btn" data-page="predictions" type="button">Predictions</button>
-        <button class="tab-btn" data-page="performance" type="button">Performance</button>
         <button class="tab-btn" data-page="history" type="button">History</button>
         <button id="refreshBtnMobile" class="nav-refresh nav-refresh-mobile" type="button">
           Refresh Picks
@@ -55,7 +53,7 @@
     </header>
 
     <main class="page-main">
-      <section class="hero-section panel-block" data-pages="overview,predictions,performance,history">
+      <section class="hero-section panel-block" data-pages="overview,predictions,history">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-grid" aria-hidden="true"></div>
 
@@ -98,7 +96,7 @@
         </div>
       </section>
 
-      <section class="stats-band panel-block" data-pages="overview,predictions,performance,history">
+      <section class="stats-band panel-block" data-pages="overview,predictions,history">
         <div class="band-inner">
           <article class="band-stat">
             <p class="band-label">League</p>
@@ -117,24 +115,12 @@
         </div>
       </section>
 
-      <section class="content-section panel-block" data-pages="overview,performance">
-        <div class="section-inner">
-          <header class="section-head">
-            <div>
-              <h2 class="section-title">Section Performance</h2>
-              <p class="section-sub">Settled results by pick category across saved runs.</p>
-            </div>
-          </header>
-          <div id="sectionStats" class="perf-grid"></div>
-        </div>
-      </section>
-
       <section class="content-section panel-block" data-pages="overview,predictions">
         <div class="section-inner">
           <header class="section-head">
             <div>
               <h2 class="section-title">Latest Predictions</h2>
-              <p class="section-sub">The most recent recommendation set from your pipeline.</p>
+              <p class="section-sub">The most recent model-led picks, shown with confidence and supporting context.</p>
             </div>
             <button id="viewLatestBtn" class="btn-back" type="button" hidden>Back to Latest</button>
           </header>
@@ -154,7 +140,7 @@
         </div>
       </section>
 
-      <footer class="site-footer panel-block" data-pages="overview,predictions,performance,history">
+      <footer class="site-footer panel-block" data-pages="overview,predictions,history">
         <div class="footer-inner">
           <div class="footer-brand">
             <p class="footer-mark">SurgeBet</p>
