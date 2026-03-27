@@ -514,45 +514,106 @@ function blendScore(stats) {
   return totalWeight ? Number((score / totalWeight).toFixed(1)) : null;
 }
 
-function buildPromptBlock(matchups) {
+function summarizeSupport(matchup, pickSide) {
+  const isHomePick = pickSide === "home";
+  const team = isHomePick ? matchup.homeTeam : matchup.awayTeam;
+  const opponent = isHomePick ? matchup.awayTeam : matchup.homeTeam;
+  const teamHistory = isHomePick ? matchup.homeHistory.team : matchup.awayHistory.team;
+  const opponentHistory = isHomePick ? matchup.awayHistory.team : matchup.homeHistory.team;
+  const notes = [];
+
+  if (teamHistory.overall?.winPct != null) {
+    notes.push(`${team.teamName} overall win rate ${teamHistory.overall.winPct}%`);
+  }
+  if (teamHistory.homeAway?.winPct != null) {
+    notes.push(`${isHomePick ? "home" : "road"} split ${teamHistory.homeAway.winPct}%`);
+  }
+  if (teamHistory.travel?.winPct != null) {
+    notes.push(`${team.travelBucket} travel spot ${teamHistory.travel.winPct}%`);
+  }
+  if (teamHistory.headToHead?.games) {
+    notes.push(`head-to-head ${teamHistory.headToHead.wins}-${teamHistory.headToHead.losses} vs ${opponent.teamName}`);
+  }
+  if (opponentHistory.homeAway?.winPct != null) {
+    notes.push(`${opponent.teamName} ${isHomePick ? "road" : "home"} split ${opponentHistory.homeAway.winPct}%`);
+  }
+
+  return notes.slice(0, 4);
+}
+
+function confidenceTier(probabilityPct) {
+  if (probabilityPct >= 75) return "High";
+  if (probabilityPct >= 60) return "Medium";
+  return "Low";
+}
+
+function buildModelPicks(matchups) {
+  return matchups
+    .map((matchup) => {
+      const hasModel = Boolean(matchup.modelPrediction);
+      const pickSide =
+        hasModel && matchup.modelPrediction.homeWinPct !== matchup.modelPrediction.awayWinPct
+          ? matchup.modelPrediction.homeWinPct > matchup.modelPrediction.awayWinPct
+            ? "home"
+            : "away"
+          : matchup.historicalLean.team === matchup.homeTeam.teamName
+            ? "home"
+            : "away";
+      const pickTeam = pickSide === "home" ? matchup.homeTeam.teamName : matchup.awayTeam.teamName;
+      const opponentTeam = pickSide === "home" ? matchup.awayTeam.teamName : matchup.homeTeam.teamName;
+      const pickOdds = pickSide === "home" ? matchup.homeOdds : matchup.awayOdds;
+      const winPct = hasModel
+        ? pickSide === "home"
+          ? matchup.modelPrediction.homeWinPct
+          : matchup.modelPrediction.awayWinPct
+        : null;
+
+      return {
+        matchup: matchup.matchup,
+        commenceTimeUtc: matchup.commenceTimeUtc,
+        pickTeam,
+        opponentTeam,
+        pickSide,
+        confidencePct: winPct,
+        confidenceLabel: confidenceTier(winPct ?? 50),
+        historicalLean: matchup.historicalLean.team,
+        historicalEdgePct: matchup.historicalLean.edgePct,
+        moneyline: pickOdds?.avgMoneyline ?? null,
+        impliedWinPct: pickOdds?.impliedWinPct ?? null,
+        support: summarizeSupport(matchup, pickSide)
+      };
+    })
+    .sort((left, right) => (right.confidencePct ?? 0) - (left.confidencePct ?? 0));
+}
+
+function buildFormatterPrompt(modelPicks) {
   const header = [
-    "You are making NBA moneyline picks using a trained baseline model plus historical team performance by situation.",
-    "Prioritize the model probabilities first, then use the historical category context as supporting evidence.",
-    "Prioritize larger samples over tiny samples and avoid overreacting to sparse head-to-head data.",
-    "Choose one side per game and explain the categories driving the pick."
+    "You are formatting model-selected NBA moneyline picks for a sportsbook analytics dashboard.",
+    "Do not change the picks.",
+    "Do not invent new picks or omit picks.",
+    "Use the provided confidence percentages and supporting stats as-is.",
+    "Return concise polished copy that keeps each pick with its confidence and explanation in the same block."
   ].join(" ");
 
-  const body = matchups
-    .map((matchup) => {
+  const body = modelPicks
+    .map((pick, index) => {
       const lines = [
-        `Matchup: ${matchup.awayTeam.teamName} @ ${matchup.homeTeam.teamName}`,
-        `Scheduled tip: ${matchup.homeTeam.localDateTime} ${matchup.homeArena.timezone}`,
-        `Odds: ${matchup.awayTeam.teamName} ML ${matchup.awayOdds.avgMoneyline ?? "N/A"} (${matchup.awayOdds.impliedWinPct ?? "N/A"}% implied), ${matchup.homeTeam.teamName} ML ${matchup.homeOdds.avgMoneyline ?? "N/A"} (${matchup.homeOdds.impliedWinPct ?? "N/A"}% implied)`,
-        matchup.modelPrediction
-          ? `Model probability: ${matchup.homeTeam.teamName} ${matchup.modelPrediction.homeWinPct}% vs ${matchup.awayTeam.teamName} ${matchup.modelPrediction.awayWinPct}%`
-          : "Model probability: no trained model artifact loaded",
-        `Historical lean: ${matchup.historicalLean.team}${matchup.historicalLean.edgePct == null ? "" : ` by ${matchup.historicalLean.edgePct} pts`}`,
-        formatRecord(`${matchup.homeTeam.teamName} overall`, matchup.homeHistory.team.overall),
-        formatRecord(`${matchup.homeTeam.teamName} home/away split`, matchup.homeHistory.team.homeAway),
-        formatRecord(`${matchup.homeTeam.teamName} rest bucket (${matchup.homeTeam.restBucket})`, matchup.homeHistory.team.rest),
-        formatRecord(`${matchup.homeTeam.teamName} travel bucket (${matchup.homeTeam.travelBucket})`, matchup.homeHistory.team.travel),
-        formatRecord(`${matchup.homeTeam.teamName} back-to-back=${matchup.homeTeam.backToBack}`, matchup.homeHistory.team.backToBack),
-        formatRecord(`${matchup.homeTeam.teamName} head-to-head vs ${matchup.awayTeam.teamName}`, matchup.homeHistory.team.headToHead),
-        formatRecord(`${matchup.awayTeam.teamName} overall`, matchup.awayHistory.team.overall),
-        formatRecord(`${matchup.awayTeam.teamName} home/away split`, matchup.awayHistory.team.homeAway),
-        formatRecord(`${matchup.awayTeam.teamName} rest bucket (${matchup.awayTeam.restBucket})`, matchup.awayHistory.team.rest),
-        formatRecord(`${matchup.awayTeam.teamName} travel bucket (${matchup.awayTeam.travelBucket})`, matchup.awayHistory.team.travel),
-        formatRecord(`${matchup.awayTeam.teamName} back-to-back=${matchup.awayTeam.backToBack}`, matchup.awayHistory.team.backToBack),
-        formatRecord(`${matchup.awayTeam.teamName} head-to-head vs ${matchup.homeTeam.teamName}`, matchup.awayHistory.team.headToHead),
-        formatRecord("League baseline for this home-team spot", matchup.homeHistory.leagueBaseline),
-        formatRecord("League baseline for this away-team spot", matchup.awayHistory.leagueBaseline)
+        `${index + 1}. ${pick.pickTeam} MoneyLine vs ${pick.opponentTeam}`,
+        `Confidence: ${pick.confidencePct != null ? `${pick.confidencePct}%` : "N/A"} (${pick.confidenceLabel})`,
+        `Model Pick: ${pick.pickTeam}`,
+        pick.moneyline != null
+          ? `Odds: ${pick.moneyline} (${pick.impliedWinPct ?? "N/A"}% implied)`
+          : "Odds: N/A",
+        pick.historicalLean
+          ? `Historical Lean: ${pick.historicalLean}${pick.historicalEdgePct != null ? ` by ${pick.historicalEdgePct} pts` : ""}`
+          : "Historical Lean: N/A",
+        `Supporting Stats: ${pick.support.length ? pick.support.join("; ") : "No strong historical support available"}`
       ];
-
       return lines.join("\n");
     })
     .join("\n\n");
 
-  return `${header}\n\n${body}`;
+  return `${header}\n\nModel Picks:\n\n${body}`;
 }
 
 function toDateKey(date) {
@@ -994,6 +1055,12 @@ app.post("/api/nba/pick-context", async (req, res) => {
       });
     }
 
+    const picks = buildModelPicks(matchups);
+    const matchupPickMap = new Map(picks.map((pick) => [pick.matchup, pick]));
+    for (const matchup of matchups) {
+      matchup.modelPick = matchupPickMap.get(matchup.matchup) || null;
+    }
+
     res.json({
       ok: true,
       season: history.latestSeason,
@@ -1001,7 +1068,8 @@ app.post("/api/nba/pick-context", async (req, res) => {
       modelAvailable: Boolean(modelArtifact),
       unresolvedTeams: unresolved,
       games: matchups,
-      prompt: buildPromptBlock(matchups)
+      picks,
+      prompt: buildFormatterPrompt(picks)
     });
   } catch (error) {
     res.status(500).json({

@@ -132,7 +132,8 @@ Body:
 Response includes:
 
 - `games`: structured matchup stats for each team
-- `prompt`: a plain-text block ready to feed into the OpenAI node in n8n
+- `picks`: backend-selected model picks ranked by confidence
+- `prompt`: a formatter-only plain-text block ready to feed into the OpenAI node in n8n
 - `modelAvailable`: whether a trained model artifact was loaded
 - `unresolvedTeams`: any team names that could not be mapped
 
@@ -176,7 +177,7 @@ Response includes:
 }
 ```
 
-Then use `{{$json.prompt}}` as the main evidence block in your OpenAI node instead of sending odds alone.
+Then use `{{$json.prompt}}` in your OpenAI node so the AI formats the backend-selected picks instead of deciding the sides itself.
 
 ## NBA Model Training
 
